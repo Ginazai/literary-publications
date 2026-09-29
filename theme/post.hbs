@@ -1,0 +1,25 @@
+{{!< default}}
+{{#post}}
+<article class="essay">
+    <div class="opts-bar">
+        <div class="toggle" role="group" aria-label="View mode">
+            <button id="bPage" aria-pressed="true">Page View</button><button id="bRead" aria-pressed="false">Reading View</button>
+        </div>
+    </div>
+
+    {{!-- The whole essay, untouched. <hr> (Ghost divider card) = page break. --}}
+    <div id="source" class="src" data-title="{{title}}" data-author="{{primary_author.name}}">{{content}}</div>
+
+    <div id="pageView">
+        <div id="stage"></div>
+        {{> "reader-controls"}}
+    </div>
+    <div id="reading"></div>
+
+    <noscript><div class="noscript">{{content}}</div></noscript>
+</article>
+{{/post}}
+{{> "newsletter"}}
+<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+<script src="{{asset "js/reader.js"}}"></script>
+<script src="{{asset "js/post.js"}}"></script>

@@ -1,0 +1,59 @@
+# Render Blueprint: Ghost 6 web service on a persistent disk (uploads/themes).
+# The database is Aiven for MySQL 8, hosted outside Render.
+services:
+  - type: web
+    name: ghost
+    runtime: docker
+    dockerfilePath: ./deploy/ghost/Dockerfile
+    dockerContext: ./deploy/ghost
+    plan: standard            # Ghost wants >= 1 GB RAM; smaller plans may run out of memory
+    autoDeploy: false         # deploy Ghost upgrades on purpose, not on every push
+    healthCheckPath: /ghost/api/admin/site/
+    disk:
+      name: ghost-content
+      mountPath: /var/lib/ghost/content
+      sizeGB: 10
+    envVars:
+      - key: url
+        sync: false           # e.g. https://yourdomain.com (must match the public URL exactly)
+      - key: server__host
+        value: 0.0.0.0
+      - key: server__port
+        value: 10000
+      # Database: Aiven for MySQL (values from the Aiven console > Overview > Connection information)
+      - key: database__client
+        value: mysql
+      - key: database__connection__host
+        sync: false           # e.g. mysql-xxxx-yourproject.aivencloud.com
+      - key: database__connection__port
+        sync: false           # Aiven uses a custom port, not 3306
+      - key: database__connection__database
+        value: defaultdb      # Aiven's default database name; change if you create another
+      - key: database__connection__user
+        value: avnadmin
+      - key: database__connection__password
+        sync: false
+      - key: database__connection__ssl__rejectUnauthorized
+        value: true
+      - key: database__connection__ssl__ca
+        sync: false           # paste the CA certificate from the Aiven console (PEM, including BEGIN/END lines)
+      # Transactional mail (staff login codes, member magic links) via Mailgun SMTP
+      - key: mail__transport
+        value: SMTP
+      - key: mail__from
+        sync: false           # e.g. "Your Publication <hello@mg.yourdomain.com>"
+      - key: mail__options__host
+        value: smtp.mailgun.org   # smtp.eu.mailgun.org for the EU region
+      - key: mail__options__port
+        value: 587
+      - key: mail__options__auth__user
+        sync: false           # postmaster@mg.yourdomain.com
+      - key: mail__options__auth__pass
+        sync: false           # Mailgun SMTP password
+      # Bulk newsletter sending via the Mailgun API
+      - key: bulkEmail__mailgun__baseUrl
+        value: https://api.mailgun.net/v3   # https://api.eu.mailgun.net/v3 for EU
+      - key: bulkEmail__mailgun__domain
+        sync: false           # mg.yourdomain.com
+      - key: bulkEmail__mailgun__apiKey
+        sync: false

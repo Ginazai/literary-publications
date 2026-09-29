@@ -1,0 +1,11 @@
+routes:
+  /: index
+
+collections:
+  /essays/:
+    permalink: /essays/{slug}/
+    template: index
+
+taxonomies:
+  tag: /topic/{slug}/
+  author: /author/{slug}/

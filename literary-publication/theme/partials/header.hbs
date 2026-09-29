@@ -1,0 +1,8 @@
+<header class="site-header">
+    <a class="site-title" href="{{@site.url}}">{{@site.title}}</a>
+    <nav>
+        {{navigation}}
+        <button data-ghost-search aria-label="Search">Search</button>
+        {{#unless @member}}<a data-portal="signin">Sign in</a>{{/unless}}
+    </nav>
+</header>
