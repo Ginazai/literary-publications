@@ -16,6 +16,8 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      - key: AIVEN_CA_CERT
+        sync: false       # paste the full contents of Aiven's CA certificate (ca.pem)
       - key: DB_NAME
         value: writefreely
       - key: ADMIN_USER

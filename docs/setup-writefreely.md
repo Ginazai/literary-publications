@@ -19,14 +19,15 @@ Commands assume a recent release (0.15.x). If a command is rejected, run `./writ
    `mysql --host HOST --port PORT --user avnadmin --password --ssl-mode=REQUIRED`
    `CREATE DATABASE writefreely CHARACTER SET latin1 COLLATE latin1_swedish_ci;`
 4. In `config.ini` use `type = mysql`, the credentials, `database = writefreely`, and `tls = true`.
-5. Run `db init` once, `db migrate` after every WriteFreely upgrade. Back up before upgrading.
+5. **Download the CA certificate** (service Overview -> "CA certificate" -> download `ca.pem`). Aiven uses a private CA, so without it you get `x509: certificate signed by unknown authority`. Locally, install it in your system trust store; on Render, paste its full contents into the `AIVEN_CA_CERT` variable (the container installs it at startup).
+6. Run `db init` once, `db migrate` after every WriteFreely upgrade. Back up before upgrading.
 
 ## C. Deploy on Render
 **Know the free-plan limits:** a free web service sleeps after 15 minutes idle (first request takes roughly 30-60 s), has no persistent disk (local files are lost on restart), and gives no shell access. The setup here works around the disk problem by rebuilding `config.ini` from environment variables on each start and keeping all content in Aiven. Consequences: you log in again after each restart, and the first reader to arrive after idle waits. For a real launch use a paid web service.
 
 1. Push this repo to GitHub.
 2. Render dashboard -> New -> Blueprint -> pick the repo. It reads `render.yaml` and creates two services: `writefreely` (Docker) and `reader` (static site).
-3. Fill the prompted variables for `writefreely`: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` (from Aiven), `ADMIN_USER`, `ADMIN_PASSWORD`, and a placeholder `PUBLIC_URL`.
+3. Fill the prompted variables for `writefreely`: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` and `AIVEN_CA_CERT` (the full text of ca.pem, from Aiven), `ADMIN_USER`, `ADMIN_PASSWORD`, and a placeholder `PUBLIC_URL`.
 4. After the first deploy, copy the service URL (https://writefreely-xxxx.onrender.com), set `PUBLIC_URL` to it, and redeploy.
 5. Open that URL, log in with the admin credentials, create a blog with the alias `test`.
 6. For `reader`, set `VITE_WF_BASE` to `https://writefreely-xxxx.onrender.com/api` and redeploy. (The browser calls WriteFreely directly; WriteFreely's public API allows cross-origin requests. Verify in the browser console if the archive stays empty.)
