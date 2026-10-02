@@ -1,0 +1,16 @@
+example.com {
+	handle_path /wf/* {
+		rewrite * /api{path}
+		reverse_proxy https://write.example.com {
+			header_up Host write.example.com
+		}
+	}
+	handle {
+		root * /srv/frontend/dist
+		try_files {path} /index.html
+		file_server
+	}
+}
+write.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
