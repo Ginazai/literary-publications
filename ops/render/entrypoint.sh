@@ -3,6 +3,16 @@
 # free plan has no persistent disk (local files are lost on spin-down and deploy).
 set -e
 cd /writefreely
+
+# Aiven signs its MySQL servers with a private CA that is not in the system trust store.
+# Without this, WriteFreely fails with "x509: certificate signed by unknown authority".
+if [ -n "${AIVEN_CA_CERT}" ]; then
+  printf '%b\n' "${AIVEN_CA_CERT}" > /usr/local/share/ca-certificates/aiven-ca.crt
+  update-ca-certificates
+else
+  echo "WARNING: AIVEN_CA_CERT is not set; TLS to the database will fail with an x509 error."
+fi
+
 cat > config.ini <<CFG
 [server]
 hidden_host =
@@ -32,7 +42,7 @@ private           = false
 CFG
 # Session keys are regenerated on every start, so you will need to log in again after a restart.
 ./writefreely keys generate
-./writefreely db init || echo "db init skipped (database already initialised?)"
+./writefreely db init || echo "db init returned an error (expected if tables already exist; otherwise see the log above)"
 ./writefreely db migrate
 ./writefreely user create --admin "${ADMIN_USER}:${ADMIN_PASSWORD}" || echo "admin user already exists"
 exec ./writefreely

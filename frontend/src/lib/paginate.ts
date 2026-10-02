@@ -7,7 +7,7 @@ export function paginate(html: string, w: number, h: number): string[] {
   probe.className = 'page'
   probe.style.cssText = `position:absolute;visibility:hidden;left:-9999px;width:${w}px;height:${h}px`
   document.body.appendChild(probe)
-  const items: Item<Element>[] = Array.from(src.children).map(n => n.matches('hr.pagebreak') ? BREAK : n)
+  const items: Item<Element>[] = Array.from(src.children).map((n): Item<Element> => n.matches('hr.pagebreak') ? BREAK : n)
   const fits = (page: Element[]) => {
     probe.replaceChildren(...page.map(n => n.cloneNode(true)))
     return probe.scrollHeight <= probe.clientHeight
