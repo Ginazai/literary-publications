@@ -10,6 +10,7 @@ WriteFreely (CMS, Aiven MySQL) + React/Vite reader with StPageFlip. Design read:
 
 ## Architecture decisions
 - Pagination is pure and testable: `pack.ts` (no DOM) decides page boundaries; `paginate.ts` supplies a DOM measuring callback.
+- Page turn is custom CSS (page-flip removed: it caused layout collapse, scroll jumps and an abrupt page vanish).
 - Author breaks: `<!-- pagebreak -->`. Automatic pagination fills the rest.
 - Multiple publications = multiple WriteFreely collections, listed in `VITE_WF_ALIASES`; URLs are `/:alias/:slug`. Requires WriteFreely multi-user mode (`single_user = false`).
 - Same-origin `/wf` proxy to WriteFreely (Caddy in prod, Vite in dev).

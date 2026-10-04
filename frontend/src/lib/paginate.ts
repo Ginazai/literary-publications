@@ -39,8 +39,12 @@ export function paginate(html: string, w: number, h: number): string[] {
   probe.style.cssText = `position:absolute;visibility:hidden;left:-9999px;width:${w}px;height:${h}px`
   document.body.appendChild(probe)
   const items: Item<Element>[] = Array.from(src.children).map((n): Item<Element> => n.matches('hr.pagebreak') ? BREAK : n)
-  const fits = (page: Element[]) => { probe.replaceChildren(...page.map(n => n.cloneNode(true))); return probe.scrollHeight <= probe.clientHeight }
-  const pages = packPages(items, fits, splitParagraph).map(p => { probe.replaceChildren(...p.map(n => n.cloneNode(true))); return probe.innerHTML })
+  // Measure the content height itself (not scrollHeight, which browsers disagree on when padding is involved).
+  const cs = getComputedStyle(probe)
+  const avail = h - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 1
+  const box = document.createElement('div'); box.style.display = 'flow-root'; probe.appendChild(box)
+  const fits = (page: Element[]) => { box.replaceChildren(...page.map(n => n.cloneNode(true))); return box.getBoundingClientRect().height <= avail }
+  const pages = packPages(items, fits, splitParagraph).map(p => { box.replaceChildren(...p.map(n => n.cloneNode(true))); return box.innerHTML })
   probe.remove()
   return pages
 }
