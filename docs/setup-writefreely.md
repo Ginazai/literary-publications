@@ -20,7 +20,8 @@ Commands assume a recent release (0.15.x). If a command is rejected, run `./writ
    `CREATE DATABASE writefreely CHARACTER SET latin1 COLLATE latin1_swedish_ci;`
 4. In `config.ini` use `type = mysql`, the credentials, `database = writefreely`, and `tls = true`.
 5. **Download the CA certificate** (service Overview -> "CA certificate" -> download `ca.pem`). Aiven uses a private CA, so without it you get `x509: certificate signed by unknown authority`. Locally, install it in your system trust store; on Render, paste its full contents into the `AIVEN_CA_CERT` variable (the container installs it at startup).
-6. Run `db init` once, `db migrate` after every WriteFreely upgrade. Back up before upgrading.
+6. **Turn off the primary-key requirement.** Aiven MySQL enables `sql_require_primary_key` by default and some WriteFreely tables have no primary key, so `db init` fails with `Error 3750`. In the service Overview -> Advanced configuration -> Change -> Add configuration option, set `sql_require_primary_key` to false and save. (CLI alternative: `avn service update SERVICE_NAME -c sql_require_primary_key=false`.) If an earlier `db init` failed part-way, reset with `DROP DATABASE writefreely;` and the `CREATE DATABASE` command above.
+7. Run `db init` once, `db migrate` after every WriteFreely upgrade. Back up before upgrading.
 
 ## C. Deploy on Render
 **Know the free-plan limits:** a free web service sleeps after 15 minutes idle (first request takes roughly 30-60 s), has no persistent disk (local files are lost on restart), and gives no shell access. The setup here works around the disk problem by rebuilding `config.ini` from environment variables on each start and keeping all content in Aiven. Consequences: you log in again after each restart, and the first reader to arrive after idle waits. For a real launch use a paid web service.

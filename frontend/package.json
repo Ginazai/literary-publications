@@ -9,6 +9,9 @@
   "test": "node --test tests/pack.test.ts"
  },
  "dependencies": {
+  "@fontsource-variable/eb-garamond": "^5.1.0",
+  "@fontsource-variable/geist": "^5.1.0",
+  "@phosphor-icons/react": "^2.1.7",
   "dompurify": "^3.1.6",
   "marked": "^14.1.0",
   "minisearch": "^7.1.0",
