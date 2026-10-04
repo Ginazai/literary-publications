@@ -35,13 +35,11 @@ button{display:inline-flex;align-items:center;gap:.5rem;font:500 .9rem var(--san
 button:hover{border-color:var(--accent)}button:active{transform:translateY(1px)}
 .ghost{border-color:transparent;color:var(--muted);padding:0}.ghost:hover{color:var(--text);border-color:transparent}
 .reader{display:flex;flex-direction:column;align-items:center;gap:1.1rem;margin:0 0 2.5rem}
-.book{max-width:100%}
 .book-skeleton{width:min(420px,calc(100vw - 2rem));aspect-ratio:1/1.42;background:var(--desk2)}
-.reader .book:not(:empty)~.book-skeleton{display:none}
 .ribbon{width:100%;max-width:420px;height:2px;background:var(--line)}.ribbon i{display:block;height:100%;background:var(--accent);transition:width .35s}
 .controls{display:flex;gap:1.25rem;align-items:center}.count{min-width:4.5rem;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
 /* The page: also used for pagination measuring, so size-affecting rules live here only */
-.page{background:var(--paper) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='%23n'/></svg>");
+.page{background:linear-gradient(90deg,#10141614,#10141600 7%),var(--paper);
 color:var(--ink);padding:2.5rem 2.25rem 3.75rem;overflow:hidden;font:400 18px/1.55 var(--serif);text-wrap:pretty;hyphens:manual}
 .page p{margin:0;text-indent:1.5em}.page p:first-child,.page p.cont,.page h1+p,.page h2+p{text-indent:0}
 .page h1,.page h2,.page h3{font-weight:500;font-size:1.3em;line-height:1.2;margin:0 0 .9em}
@@ -51,3 +49,16 @@ color:var(--ink);padding:2.5rem 2.25rem 3.75rem;overflow:hidden;font:400 18px/1.
 footer{color:var(--muted);font-size:.8rem}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.archive li{animation:none}.ribbon i,.t,button{transition:none}}
+
+/* Page turn: a leaf hinged on its left edge lifts away, then fades. Stage has a fixed size so layout never shifts. */
+.stage{position:relative;overflow:hidden;perspective:1800px;touch-action:pan-y;max-width:100%;box-shadow:0 40px 60px -30px #02080acc}
+.stage .page{position:absolute;left:0;top:0}
+.under{z-index:1}.shade{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(90deg,#0d111380,#0d111300 75%)}
+.leaf{z-index:3;transform-origin:0 50%;backface-visibility:hidden;will-change:transform,opacity;box-shadow:12px 0 30px #0d111340}
+.leaf.next{animation:turn-out .7s cubic-bezier(.45,0,.7,.4) forwards}.leaf.prev{animation:turn-in .7s cubic-bezier(.3,.6,.5,1) both}
+.shade.next{animation:shade-out .7s ease-in forwards}.shade.prev{animation:shade-in .7s ease-out both}
+@keyframes turn-out{0%{transform:rotateY(0);opacity:1}65%{opacity:1}100%{transform:rotateY(-100deg);opacity:0}}
+@keyframes turn-in{0%{transform:rotateY(-100deg);opacity:0}35%{opacity:1}100%{transform:rotateY(0);opacity:1}}
+@keyframes shade-out{from{opacity:1}to{opacity:0}}@keyframes shade-in{from{opacity:0}to{opacity:1}}
+button:disabled{opacity:.35;cursor:default}
+html{overflow-x:clip}

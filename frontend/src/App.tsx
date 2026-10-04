@@ -75,7 +75,7 @@ function Essay() {
         <div><h1 className="essay-title">{essay.title}</h1><p className="byline">{SITE.author}, {minutes(essay.body)} min read</p></div>
         <button className="ghost" onClick={() => setPlain(p => !p)}>{plain ? 'Show book view' : 'Show plain text'}</button>
       </div>
-      {plain ? <div className="plain" dangerouslySetInnerHTML={{ __html: html }} /> : <BookReader html={html} />}
+      {plain ? <div className="plain" dangerouslySetInnerHTML={{ __html: html }} /> : <BookReader key={`${alias}/${slug}`} html={html} />}
     </article>
   )
 }

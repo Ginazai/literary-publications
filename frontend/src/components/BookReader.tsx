@@ -1,53 +1,84 @@
 import { useEffect, useRef, useState } from 'react'
-import { PageFlip } from 'page-flip'
 import { ArrowLeft, ArrowRight } from '@phosphor-icons/react'
 import { paginate } from '../lib/paginate'
 
 const FONTS = ['18px "EB Garamond Variable"', 'italic 18px "EB Garamond Variable"']
+type Dir = 'next' | 'prev'
+interface Turn { dir: Dir; from: number; to: number }
 
 export default function BookReader({ html }: { html: string }) {
-  const host = useRef<HTMLDivElement>(null)
-  const flip = useRef<PageFlip | null>(null)
-  const [state, setState] = useState({ page: 0, total: 1, ready: false })
+  const [vw, setVw] = useState(window.innerWidth)
+  const [book, setBook] = useState<{ w: number; h: number; pages: string[] } | null>(null)
+  const [index, setIndex] = useState(0)
+  const [turn, setTurn] = useState<Turn | null>(null)
+  const turnRef = useRef<Turn | null>(null)
+  const latest = useRef({ index: 0, total: 1 })
+  latest.current = { index, total: book?.pages.length ?? 1 }
 
+  // Repaginate only when the width really changes (rotation), not when a phone's URL bar resizes the height.
   useEffect(() => {
-    let cancelled = false
-    let pf: PageFlip | null = null
-    const key = (e: KeyboardEvent) => { if (e.key === 'ArrowRight') pf?.flipNext(); if (e.key === 'ArrowLeft') pf?.flipPrev() }
-    // Pagination measures text, so wait for the fonts or page breaks will be wrong.
-    Promise.all(FONTS.map(f => document.fonts.load(f))).catch(() => undefined).then(() => {
-      const root = host.current
-      if (cancelled || !root) return
-      const w = window.innerWidth < 800 ? Math.min(window.innerWidth - 32, 420) : 420
-      const h = Math.round(w * 1.42)
-      const chunks = paginate(html, w, h)
-      const mount = document.createElement('div')
-      root.replaceChildren(mount)
-      const pages = chunks.map((c, i) => {
-        const d = document.createElement('div'); d.className = 'page'; d.innerHTML = c; d.dataset.folio = String(i + 1); mount.appendChild(d); return d
-      })
-      const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      pf = new PageFlip(mount, { width: w, height: h, size: 'fixed', usePortrait: true, showCover: false,
-        mobileScrollSupport: false, maxShadowOpacity: 0.35, flippingTime: calm ? 1 : 650 })
-      pf.loadFromHTML(pages)
-      pf.on('flip', e => setState(s => ({ ...s, page: e.data as number })))
-      flip.current = pf
-      setState({ page: 0, total: chunks.length, ready: true })
-      window.addEventListener('keydown', key)
-    })
-    return () => { cancelled = true; window.removeEventListener('keydown', key); try { pf?.destroy() } catch { /* already removed */ } host.current?.replaceChildren(); flip.current = null }
-  }, [html])
+    let t: number
+    const on = () => { clearTimeout(t); t = window.setTimeout(() => setVw(v => Math.abs(window.innerWidth - v) > 40 ? window.innerWidth : v), 200) }
+    window.addEventListener('resize', on)
+    return () => { window.removeEventListener('resize', on); clearTimeout(t) }
+  }, [])
 
-  const n = Math.min(state.page + 1, state.total)
+  // Pagination measures text, so wait for the fonts first or page breaks will be wrong.
+  useEffect(() => {
+    let off = false
+    Promise.all(FONTS.map(f => document.fonts.load(f))).catch(() => undefined).then(() => {
+      if (off) return
+      const w = Math.min(vw - 32, 440), h = Math.round(w * 1.42)
+      const pages = paginate(html, w, h)
+      const { index: i, total } = latest.current
+      setBook({ w, h, pages }); turnRef.current = null; setTurn(null)
+      setIndex(total > 1 ? Math.round((i / (total - 1)) * (pages.length - 1)) : 0)
+    })
+    return () => { off = true }
+  }, [html, vw])
+
+  const total = book?.pages.length ?? 1
+  const finish = () => { const t = turnRef.current; if (!t) return; turnRef.current = null; setIndex(t.to); setTurn(null) }
+  const go = (dir: Dir) => {
+    if (!book || turnRef.current) return
+    const to = index + (dir === 'next' ? 1 : -1)
+    if (to < 0 || to >= total) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setIndex(to); return }
+    const t = { dir, from: index, to }; turnRef.current = t; setTurn(t)
+  }
+  const goRef = useRef(go); goRef.current = go
+  useEffect(() => { if (!turn) return; const t = setTimeout(finish, 1000); return () => clearTimeout(t) }, [turn])
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === 'ArrowRight') goRef.current('next'); if (e.key === 'ArrowLeft') goRef.current('prev') }
+    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key)
+  }, [])
+
+  const start = useRef<{ x: number; y: number } | null>(null)
+  const shown = turn ? turn.to : index
+  const under = turn ? (turn.dir === 'next' ? turn.to : turn.from) : index
+  const leaf = turn ? (turn.dir === 'next' ? turn.from : turn.to) : null
+  const page = (n: number, cls: string, extra?: object) => book && (
+    <div className={`page ${cls}`} data-folio={n + 1} style={{ width: book.w, height: book.h }} {...extra} dangerouslySetInnerHTML={{ __html: book.pages[n] }} />)
+
   return (
     <div className="reader">
-      <div ref={host} className="book" aria-label="Essay, paged view" />
-      {!state.ready && <div className="book-skeleton" aria-hidden="true" />}
-      <div className="ribbon" role="progressbar" aria-label="Reading progress" aria-valuemin={1} aria-valuemax={state.total} aria-valuenow={n}><i style={{ width: `${(n / state.total) * 100}%` }} /></div>
+      {book ? (
+        <div className="stage" role="group" aria-label={`Page ${shown + 1} of ${total}`} style={{ width: book.w, height: book.h }}
+          onPointerDown={e => { start.current = { x: e.clientX, y: e.clientY } }}
+          onPointerUp={e => { const s = start.current; start.current = null; if (!s) return; const dx = e.clientX - s.x, dy = e.clientY - s.y
+            if (Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy)) go(dx < 0 ? 'next' : 'prev') }}>
+          {page(under, 'under')}
+          {turn && leaf !== null && <>
+            <div className={`shade ${turn.dir}`} />
+            {page(leaf, `leaf ${turn.dir}`, { onAnimationEnd: finish, 'aria-hidden': true })}
+          </>}
+        </div>
+      ) : <div className="book-skeleton" aria-label="Preparing pages" />}
+      <div className="ribbon" role="progressbar" aria-label="Reading progress" aria-valuemin={1} aria-valuemax={total} aria-valuenow={shown + 1}><i style={{ width: `${((shown + 1) / total) * 100}%` }} /></div>
       <div className="controls">
-        <button onClick={() => flip.current?.flipPrev()} aria-label="Previous page"><ArrowLeft aria-hidden="true" /> Previous</button>
-        <span className="count" aria-live="polite">{n} / {state.total}</span>
-        <button onClick={() => flip.current?.flipNext()} aria-label="Next page">Next <ArrowRight aria-hidden="true" /></button>
+        <button onClick={() => go('prev')} disabled={!book || shown === 0} aria-label="Previous page"><ArrowLeft aria-hidden="true" /> Previous</button>
+        <span className="count" aria-live="polite">{shown + 1} / {total}</span>
+        <button onClick={() => go('next')} disabled={!book || shown >= total - 1} aria-label="Next page">Next <ArrowRight aria-hidden="true" /></button>
       </div>
     </div>
   )
