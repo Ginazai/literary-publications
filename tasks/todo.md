@@ -6,7 +6,7 @@
 - [ ] T1c Live check: run WriteFreely + Aiven, confirm `/api/collections/{alias}/posts` shape, fix `writefreely.ts` if needed (S)
 - [ ] Checkpoint A: `npm install && npm run build` passes; archive lists real essays; one essay flips on a phone
 - [ ] T2 About + Subscribe pages (RSS link from collection `/feed/`) (S)
-- [ ] T3 Split over-tall paragraphs by sentence (S)
+- [x] T3 Split paragraphs across pages by word, keeping inline markup (S)
 - [ ] T4 Re-paginate on resize/orientation change, restore page (S)
 - [ ] T5 Accessibility pass: focus order, aria-live page counter, text size control (M)
 - [ ] Checkpoint B: keyboard-only and screen reader walkthrough

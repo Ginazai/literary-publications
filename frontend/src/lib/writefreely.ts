@@ -10,6 +10,7 @@ let cache: Promise<Publication[]> | null = null
 async function getJson(path: string) {
   const res = await fetch(`${BASE}/${path}`)
   if (!res.ok) throw new Error(`WriteFreely returned ${res.status} for ${path}`)
+  if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error('Got a web page instead of JSON. Check that VITE_WF_BASE points to your WriteFreely /api URL, then rebuild.')
   return res.json()
 }
 

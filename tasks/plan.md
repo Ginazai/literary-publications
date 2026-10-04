@@ -4,8 +4,8 @@
 WriteFreely (CMS, Aiven MySQL) + React/Vite reader with StPageFlip. Design read: personal literary essays, phone-first readers, quiet editorial language. Dials: VARIANCE 6, MOTION 3, DENSITY 2. The book is the one memorable element; everything else stays quiet.
 
 ## Design tokens
-- Desk #17201f (page background, dark green-black), paper #ece6d6, ink #1f1c17, muted #8c9a94, ribbon #7a2e3a (only for reading progress).
-- Type: one serif stack (Iowan Old Style / Palatino / Georgia), no web font until one is self-hosted. Sentence case, no all-caps labels.
+- Desk #0d1113 (graphite), paper #e8ebe8 (cool), ink #101416, muted #8c979b, accent #4aa585 (progress, hover, focus). Square corners. One theme.
+- Type: EB Garamond (essays, titles) and Geist (interface), both self-hosted via @fontsource-variable.
 - Layout: home is a contents page (title, dotted leader, date), left aligned. Essay is a book on the desk, plain-text toggle beside it.
 
 ## Architecture decisions
