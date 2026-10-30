@@ -33,6 +33,6 @@ export function getPublications(): Promise<Publication[]> {
 
 /** Markdown -> sanitized HTML. `<!-- pagebreak -->` becomes a forced page break. */
 export function renderBody(md: string): string {
-  const html = marked.parse(md.replace(/<!--\s*pagebreak\s*-->/g, '\n\n<hr class="pagebreak">\n\n'), { async: false }) as string
+  const html = marked.parse(md.replace(/<!--\s*pagebreak\s*-->/g, '\n\n<hr class="pagebreak">\n\n'), { async: false }) as string // taste-skill-ignore: structural page-break marker, removed by paginate.ts, never drawn
   return DOMPurify.sanitize(html, { ADD_ATTR: ['class'] })
 }

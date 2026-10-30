@@ -1,6 +1,7 @@
 # Literary publication
 WriteFreely (CMS, MySQL on Aiven) + React/Vite reader with StPageFlip.
 Corrected design: docs/technology-decision.md
+Design system: docs/design-system.md
 
 ## Phase 1 – CMS
 1. Aiven: create MySQL service, then `CREATE DATABASE writefreely CHARACTER SET latin1 COLLATE latin1_swedish_ci;` and a user.

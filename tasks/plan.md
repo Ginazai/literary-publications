@@ -1,12 +1,10 @@
 # Implementation Plan: Literary publication
 
 ## Overview
-WriteFreely (CMS, Aiven MySQL) + React/Vite reader with StPageFlip. Design read: personal literary essays, phone-first readers, quiet editorial language. Dials: VARIANCE 6, MOTION 3, DENSITY 2. The book is the one memorable element; everything else stays quiet.
+WriteFreely (CMS, Aiven MySQL) + React/Vite reader with StPageFlip. Design read: personal literary essays, phone-first readers, quiet editorial language. The book is the one memorable element; everything else stays quiet.
 
 ## Design tokens
-- Desk #0d1113 (graphite), paper #e8ebe8 (cool), ink #101416, muted #8c979b, accent #4aa585 (progress, hover, focus). Square corners. One theme.
-- Type: EB Garamond (essays, titles) and Geist (interface), both self-hosted via @fontsource-variable.
-- Layout: home is a contents page (title, dotted leader, date), left aligned. Essay is a book on the desk, plain-text toggle beside it.
+Superseded by the Lamplighter-based system: see `docs/design-system.md`. Warm dark and stone-and-bronze light themes, Cormorant Garamond + EB Garamond (both self-hosted), round controls and square surfaces, one gold rule.
 
 ## Architecture decisions
 - Pagination is pure and testable: `pack.ts` (no DOM) decides page boundaries; `paginate.ts` supplies a DOM measuring callback.
@@ -25,4 +23,3 @@ WriteFreely (CMS, Aiven MySQL) + React/Vite reader with StPageFlip. Design read:
 
 ## Open questions
 - Site name is "test", author Rafael Caballero (set in `frontend/src/config.ts`). Real publication names still to decide.
-- Self-hosted font choice (needs network to fetch).
