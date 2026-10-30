@@ -1,6 +1,6 @@
 # WriteFreely setup
 
-Commands assume a recent release (0.15.x). If a command is rejected, run `./writefreely --help`; the CLI changed between versions.
+Commands assume WriteFreely v0.17.2. If a command is rejected, run `./writefreely --help`; the CLI can change between versions.
 
 ## A. Local trial (10 minutes, SQLite, no MySQL)
 1. Download `writefreely_<version>_<os>_<arch>.tar.gz` from https://github.com/writefreely/writefreely/releases and extract it.
