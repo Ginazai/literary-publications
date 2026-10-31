@@ -1,0 +1,29 @@
+# Small weekly PRs keep dependencies and CI actions current. Security updates are separate
+# (enable "Dependabot security updates" in the repository settings) and arrive immediately.
+# Every PR runs the full CI, including the WriteFreely smoke test.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    # Peer-locked packages must move together or `npm ci` fails with ERESOLVE.
+    # A dependency lands in the first group that matches it.
+    groups:
+      react:
+        patterns: [react, react-dom, "@types/react", "@types/react-dom"]
+      vite:
+        patterns: [vite, "@vitejs/*"]
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /ops/render
+    schedule: { interval: weekly }
+    # Note: the WriteFreely version (ARG WF_VERSION in the Dockerfile) is NOT tracked by
+    # Dependabot. Check https://github.com/writefreely/writefreely/releases when you upgrade.

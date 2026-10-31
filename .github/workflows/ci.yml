@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    # A merged promotion PR only changes deploy/production.yml. Skipping CI for it stops
+    # CI -> CD from opening yet another promotion PR (an endless loop). A push that touches
+    # anything else still runs CI, since this only skips when ALL changed files match.
+    paths-ignore: ["deploy/**"]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, so a new advisory or a vanished upstream asset (WriteFreely tarball, base image)
+    # shows up as a red run instead of a surprise on your next deploy. Never triggers CD.
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+# New pushes to a PR cancel the superseded run; runs on the default branch always finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "22"   # matches render.yaml; `npm test` needs Node >= 22.6 (--experimental-strip-types)
+
+jobs:
+  # ───────────────────────────── Reader ──────────────────────────────
+  frontend:
+    name: Reader · types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Dummy build-time config, so the build is exercised the way Render builds it.
+      VITE_WF_ALIASES: ci
+      VITE_WF_BASE: https://writefreely.invalid/api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Type check
+        run: npx tsc   # tsconfig has noEmit; running it alone gives faster, clearer feedback than `npm run build`
+      - name: ESLint
+        if: ${{ hashFiles('frontend/eslint.config.js', 'frontend/eslint.config.mjs', 'frontend/eslint.config.ts') != '' }}
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Serve the build and run the reader checks
+        run: |
+          set -euo pipefail
+          trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
+          # Same stamp as the render.yaml buildCommand (scripts/ci/check-blueprint.py enforces that one).
+          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/version.json
+          npx vite preview --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
+          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:4173/ && break; sleep 1; done
+          READER_URL=http://127.0.0.1:4173 WF_URL=https://writefreely.invalid EXPECT_COMMIT="$GITHUB_SHA" \
+            bash ../scripts/ci/assert-reader.sh
+
+  # ───────────────────────── Dependency audit ────────────────────────
+  dependency-audit:
+    name: Dependency vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # Production dependencies only (what ships to readers: react, marked, DOMPurify...), high and above.
+      - name: npm audit
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+  # ─────────────────── Pipeline and deployment config ────────────────
+  pipeline-lint:
+    name: Pipeline · actionlint, shellcheck, render.yaml
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: actionlint (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          ver=1.7.12
+          curl -fsSL -o "$RUNNER_TEMP/actionlint.tgz" "https://github.com/rhysd/actionlint/releases/download/v${ver}/actionlint_${ver}_linux_amd64.tar.gz"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/actionlint.tgz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+      - name: shellcheck
+        run: |
+          shellcheck -x scripts/ci/*.sh
+          shellcheck -s sh ops/render/entrypoint.sh
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: render.yaml invariants
+        run: |
+          pip install --quiet pyyaml==6.0.2
+          python3 scripts/ci/check-blueprint.py
+
+  # ─────────────────────────── WriteFreely ───────────────────────────
+  writefreely-image:
+    name: WriteFreely · image build + smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build image (same Dockerfile Render builds)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ops/render
+          load: true
+          push: false
+          platforms: linux/amd64   # Render only runs linux/amd64
+          tags: literary-writefreely:ci
+          cache-from: type=gha,scope=writefreely
+          cache-to: type=gha,scope=writefreely,mode=max
+      - name: Smoke test (TLS MySQL with a private CA, API contract, restart)
+        env:
+          RENDER_GIT_COMMIT: ${{ github.sha }}
+        run: bash scripts/ci/smoke-test.sh   # via bash: does not depend on the git exec bit
+
+  # ──────────────────── Single required status check ─────────────────
+  # Make THIS the only required check in branch protection: adding or renaming jobs above then
+  # never needs a branch-protection change.
+  ci-gate:
+    name: CI gate
+    if: ${{ always() }}
+    needs: [frontend, dependency-audit, pipeline-lint, writefreely-image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job failed or was cancelled
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) echo "::error::CI failed"; exit 1 ;;
+          esac

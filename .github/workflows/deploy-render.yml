@@ -1,0 +1,136 @@
+name: Deploy to Render (reusable)
+
+# Called by cd.yml for `staging` and by deploy-production.yml for `production`. Each GitHub
+# Environment holds its own secrets/variables, so the same code deploys different Render services:
+#
+#   secrets    RENDER_WRITEFREELY_DEPLOY_HOOK   deploy hook URL of the WriteFreely service
+#              RENDER_READER_DEPLOY_HOOK        deploy hook URL of the reader (static site)
+#   variables  WF_URL       public URL of WriteFreely, e.g. https://writefreely-xxxx.onrender.com
+#              READER_URL   public URL of the reader
+#              WF_ALIASES   comma-separated blog aliases the reader shows (= VITE_WF_ALIASES)
+#
+# Both URLs are REQUIRED: the deploy is only reported as successful once the new commit is
+# verifiably serving (see scripts/ci/render-deploy.sh), and that needs somewhere to look.
+#
+# This workflow does NOT decide whether a deploy is allowed. Callers do:
+#   staging     cd.yml, automatically after CI passes on the default branch
+#   production  deploy-production.yml, only for a change from an approved, merged promotion PR
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment to deploy (staging | production)
+        type: string
+        required: true
+      commit:
+        description: Full 40-character commit SHA to deploy
+        type: string
+        required: true
+      soak_minutes:
+        description: Minutes to keep probing after the deploy is verified (0 = skip)
+        type: number
+        required: false
+        default: 0
+      approved_by:
+        description: Who approved this change (shown in the deployment summary)
+        type: string
+        required: false
+        default: ""
+      change_url:
+        description: Link to the PR that authorised this deploy (shown in the summary)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  # Fails fast, before any hook fires, on a malformed or unreachable commit.
+  preflight:
+    name: Preflight · ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      COMMIT: ${{ inputs.commit }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - name: Validate inputs
+        run: |
+          case "$ENVIRONMENT" in
+            staging|production) ;;
+            *) echo "::error::environment must be 'staging' or 'production' (got '$ENVIRONMENT')"; exit 1 ;;
+          esac
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit must be a full 40-character SHA (got '$COMMIT')"; exit 1; }
+        shell: bash
+      # Scripts always come from the default branch, never from the commit being deployed, so a
+      # rollback to an old commit (before this pipeline existed) still works.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Commit must exist and be on the default branch
+        run: |
+          git cat-file -e "${COMMIT}^{commit}" || { echo "::error::commit ${COMMIT:0:7} does not exist in this repository"; exit 1; }
+          git merge-base --is-ancestor "$COMMIT" "origin/${DEFAULT_BRANCH}" \
+            || { echo "::error::commit ${COMMIT:0:7} is not on ${DEFAULT_BRANCH}; only reviewed, merged code may be deployed"; exit 1; }
+
+  deploy:
+    name: Deploy · ${{ inputs.environment }}
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: ${{ inputs.environment }}   # scopes secrets and variables per environment
+      url: ${{ vars.READER_URL }}       # a "View deployment" link in the Deployments tab
+    concurrency:
+      group: deploy-${{ inputs.environment }}   # never two deploys to one environment at once
+      cancel-in-progress: false
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      COMMIT: ${{ inputs.commit }}
+      SOAK_MINUTES: ${{ inputs.soak_minutes }}
+      WF_HOOK: ${{ secrets.RENDER_WRITEFREELY_DEPLOY_HOOK }}
+      READER_HOOK: ${{ secrets.RENDER_READER_DEPLOY_HOOK }}
+      WF_URL: ${{ vars.WF_URL }}
+      READER_URL: ${{ vars.READER_URL }}
+      WF_ALIASES: ${{ vars.WF_ALIASES }}
+    steps:
+      - name: Check the environment is configured
+        run: |
+          missing=""
+          for v in WF_HOOK READER_HOOK WF_URL READER_URL; do [ -n "${!v}" ] || missing="$missing $v"; done
+          if [ -n "$missing" ]; then
+            echo "::error title=Environment '${ENVIRONMENT}' is not configured::missing:$missing. Secrets RENDER_WRITEFREELY_DEPLOY_HOOK and RENDER_READER_DEPLOY_HOOK, variables WF_URL and READER_URL (docs/ci-cd.md, step 4)."
+            exit 1
+          fi
+        shell: bash
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # render-deploy.sh diffs the live commit against the wanted one
+      - name: Summary header
+        env:
+          APPROVERS: ${{ inputs.approved_by }}
+          CHANGE_URL: ${{ inputs.change_url }}
+        run: |
+          {
+            echo "### Deploy · ${ENVIRONMENT}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | [${COMMIT:0:7}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${COMMIT}) |"
+            echo "| Triggered by | ${GITHUB_ACTOR} |"
+            [ -n "${CHANGE_URL:-}" ] && echo "| Change | ${CHANGE_URL} |"
+            [ -n "${APPROVERS:-}" ] && echo "| Approved by | ${APPROVERS} |"
+            echo "| Reader | ${READER_URL} |"
+            echo "| Run | [#${GITHUB_RUN_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+      - name: Deploy, verify, soak
+        run: bash scripts/ci/render-deploy.sh
+      - name: Result
+        if: ${{ always() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          printf '\n**Result: %s**\n' "$JOB_STATUS" >> "$GITHUB_STEP_SUMMARY"
