@@ -1,14 +1,19 @@
 # Tasks
-- [x] T0 Scaffold, corrected decision doc, ops config
+- [x] T0 Scaffold, decision doc, ops config
 - [x] T1a Pure page packing (`pack.ts`) with tests: `npm test` (S)
 - [x] T1b Visual identity v1: tokens, contents page, book desk, ribbon progress (M)
 - [x] T1d Multiple publications + site name/author config (S)
 - [x] T1e Visual identity v2: Lamplighter-based design system, themes, ledger home, book cover (M)
-- [ ] T1c Live check: run WriteFreely + Aiven, confirm `/api/collections/{alias}/posts` shape, fix `writefreely.ts` if needed (S)
-- [ ] Checkpoint A: `npm install && npm run build` passes; archive lists real essays; one essay flips on a phone
-- [ ] T2 About + Subscribe pages (RSS link from collection `/feed/`) (S)
+- [x] T1f Client-side search over all essays (MiniSearch) and plain-text reading mode (S)
 - [x] T3 Split paragraphs across pages by word, keeping inline markup (S)
 - [x] T4 Repaginate when width changes (rotation), keep reading position (S)
-- [ ] T5 Accessibility pass: focus order, aria-live page counter, text size control (M)
+- [x] T7 Replace StPageFlip with a custom CSS page turn (ADR-003) (M)
+- [x] T8 Documentation refresh: architecture doc, ADRs, setup and design docs brought in line with the code (S)
+- [ ] T1c Live check: run WriteFreely + Aiven, confirm `/api/collections/{alias}/posts` shape, fix `writefreely.ts` if needed; also check cross-origin access for the Render setup (S)
+- [ ] Checkpoint A: `npm install && npm run build` passes; archive lists real essays; one essay flips on a phone
+- [ ] T9 Remove the unused `frontend/src/page-flip.d.ts` (XS)
+- [ ] T10 Replace the placeholder site name `test` in `config.ts`, `index.html`, `render.yaml` (XS)
+- [ ] T2 About + Subscribe pages (RSS link from collection `/feed/`; decide on WriteFreely email subscriptions) (S)
+- [ ] T5 Accessibility pass (M). Already in place: skip link, `aria-live` page counter, labelled progress bar and controls, keyboard arrows, reduced-motion handling, plain-text view. Remaining: check focus order, text size control, screen reader behaviour of the paged view
 - [ ] Checkpoint B: keyboard-only and screen reader walkthrough
-- [ ] T6 Deploy: Caddy, backups, monitoring (M)
+- [ ] T6 Deploy: Caddy, backups, monitoring; paid Render service or VPS and a non-powering-off Aiven tier (M)
