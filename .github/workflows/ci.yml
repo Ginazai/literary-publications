@@ -61,8 +61,19 @@ jobs:
           trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
           # Same stamp as the render.yaml buildCommand (scripts/ci/check-blueprint.py enforces that one).
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/version.json
-          npx vite preview --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
-          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:4173/ && break; sleep 1; done
+          # Bind IPv4 explicitly. By default Vite listens on "localhost", which can resolve to the
+          # IPv6 address ::1 on the runner, so 127.0.0.1 would refuse the connection.
+          npx vite preview --host 127.0.0.1 --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
+          up=no
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:4173/ 2>/dev/null; then up=yes; break; fi
+            sleep 1
+          done
+          if [ "$up" != yes ]; then
+            echo "::error::vite preview did not come up on 127.0.0.1:4173"
+            cat "$RUNNER_TEMP/preview.log"
+            exit 1
+          fi
           READER_URL=http://127.0.0.1:4173 WF_URL=https://writefreely.invalid EXPECT_COMMIT="$GITHUB_SHA" \
             bash ../scripts/ci/assert-reader.sh
 

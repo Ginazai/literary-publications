@@ -43,9 +43,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
-wait_until() {  # <description> <tries> <command...>   (2s between tries)
-  local what=$1 tries=$2; shift 2
+# wait_until <description> <tries> <container to watch> <command...>   (2s between tries)
+# Gives up at once if the watched container has exited, instead of waiting out the full timeout.
+wait_until() {
+  local what=$1 tries=$2 watch=$3; shift 3
   for i in $(seq 1 "$tries"); do
+    if [[ "$(docker inspect -f '{{.State.Running}}' "$watch" 2>/dev/null)" != "true" ]]; then
+      echo "✗ $what: container $watch is not running (see its logs below)" >&2
+      return 1
+    fi
     if "$@" >/dev/null 2>&1; then echo "✓ $what ready (try $i)"; return 0; fi
     sleep 2
   done
@@ -53,10 +59,7 @@ wait_until() {  # <description> <tries> <command...>   (2s between tries)
   return 1
 }
 
-app_ready() {
-  [[ "$(docker inspect -f '{{.State.Running}}' "$APP")" == "true" ]] || { echo "container exited" >&2; return 1; }
-  curl -fsS --max-time 3 "$BASE/"
-}
+app_ready() { curl -fsS --max-time 3 "$BASE/"; }
 
 # ── Private CA + server certificate whose SAN is the MySQL container's hostname ──────────────
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=smoke-ca" \
@@ -66,7 +69,11 @@ openssl req -newkey rsa:2048 -nodes -subj "/CN=$DB" -keyout "$CERTS/server-key.p
 printf 'subjectAltName=DNS:%s\nbasicConstraints=CA:FALSE\n' "$DB" > "$CERTS/ext.cnf"
 openssl x509 -req -in "$CERTS/server.csr" -CA "$CERTS/ca.pem" -CAkey "$CERTS/ca-key.pem" -CAcreateserial \
   -days 1 -extfile "$CERTS/ext.cnf" -out "$CERTS/server-cert.pem" 2>/dev/null
-chmod 644 "$CERTS"/*.pem   # the mysql user inside the container must be able to read them
+# The mysql user inside the container (uid 999, not the runner user) must be able to read the files
+# AND traverse the directory. mktemp -d creates it mode 700, which silently stops MySQL loading its
+# certificates: that is what failed the first CI run.
+chmod 755 "$CERTS"
+chmod 644 "$CERTS"/*.pem
 
 docker network create "$NET" >/dev/null
 
@@ -75,7 +82,7 @@ docker run -d --name "$DB" --network "$NET" -v "$CERTS:/certs:ro" -e MYSQL_ROOT_
   "$MYSQL_IMAGE" --ssl-ca=/certs/ca.pem --ssl-cert=/certs/server-cert.pem --ssl-key=/certs/server-key.pem >/dev/null
 # TCP on 127.0.0.1 only answers from the final server, not the image's temporary init server.
 mysql_root() { docker exec -i -e MYSQL_PWD="$ROOT_PW" "$DB" mysql -h127.0.0.1 -uroot "$@"; }
-wait_until "mysql" 60 mysql_root -e 'SELECT 1'
+wait_until "mysql" 60 "$DB" mysql_root -e 'SELECT 1'
 mysql_root --batch >/dev/null <<SQL
 CREATE DATABASE writefreely CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 CREATE USER 'wf'@'%' IDENTIFIED BY '$DB_PW' REQUIRE SSL;
@@ -89,7 +96,7 @@ docker run -d --name "$APP" --network "$NET" -p "127.0.0.1:$PORT:10000" \
   -e ADMIN_USER=ciadmin -e ADMIN_PASSWORD="$ADMIN_PW" \
   -e RENDER_GIT_COMMIT="$COMMIT" \
   "$WF_IMAGE" >/dev/null
-wait_until "writefreely" 60 app_ready
+wait_until "writefreely" 60 "$APP" app_ready
 
 # ── Seed content through the API, like the author would ──────────────────────────────────────
 json() { python3 -c 'import json,sys; print(json.load(sys.stdin)'"$1"')'; }
@@ -110,7 +117,7 @@ echo "--- first start"; check
 # ── Second start: tables, admin and keys already exist (Render's normal steady state) ────────
 docker restart "$APP" >/dev/null
 sleep 2
-wait_until "writefreely after restart" 60 app_ready
+wait_until "writefreely after restart" 60 "$APP" app_ready
 echo "--- second start (content must have survived in the database)"; check
 
 echo "Smoke test passed."
