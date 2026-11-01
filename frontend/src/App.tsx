@@ -22,7 +22,7 @@ const keyOf = (e: EssayData) => `${e.alias}/${e.slug}`
 const pathOf = (e: EssayData) => `/${e.alias}/${e.slug}`
 
 function Notice({ title, children, back }: { title: string; children: ReactNode; back?: boolean }) {
-  return <div className="notice" role="alert"><h2>{title}</h2><p>{children}</p>{back && <Link className="textlink" to="/">All essays</Link>}</div>
+  return <div className="notice" role="alert"><h2>{title}</h2><p>{children}</p>{back && <Link className="textlink" to="/">Home</Link>}</div>
 }
 
 function Meta({ essay, className = '' }: { essay: EssayData; className?: string }) {
@@ -60,11 +60,37 @@ function Skeleton() {
   )
 }
 
+/** One square cover per blog; title and category sit below it. */
+function Catalog() {
+  const { pubs, error } = usePubs()
+  useTitle(`Catalog · ${SITE.name}`)
+  if (error) return <Notice title="The catalog could not be loaded">{error}</Notice>
+  if (!pubs) return <Skeleton />
+  return (
+    <section className="catalog" aria-labelledby="catalog-title">
+      <h2 id="catalog-title" className="contents-title">Catalog</h2>
+      <ul className="tiles">
+        {pubs.map((p, i) => (
+          <Reveal as="li" key={p.alias} delay={i % 4}>
+            <Link className="tile" to={`/catalog/${p.alias}`}>
+              <span className="tile-cover" aria-hidden="true"><span className="tile-initial">{p.title.charAt(0)}</span><span className="tile-count">{p.essays.length}</span></span>
+              <span className="tile-title">{p.title}</span>
+              <span className="tile-kind">{p.kind}<span className="sr">, {p.essays.length} posts</span></span>
+            </Link>
+          </Reveal>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 function Archive() {
   const { pubs, error } = usePubs()
   const [q, setQ] = useState('')
+  const { alias = '' } = useParams()
   useTitle(SITE.name)
-  const all = useMemo(() => (pubs ?? []).flatMap(p => p.essays), [pubs])
+  const scoped = useMemo(() => (pubs ?? []).filter(p => !alias || p.alias === alias), [pubs, alias])
+  const all = useMemo(() => scoped.flatMap(p => p.essays), [scoped])
   const latest = useMemo(() => [...all].sort((a, b) => +new Date(b.created) - +new Date(a.created))[0], [all])
   const index = useMemo(() => {
     const m = new MiniSearch({ fields: ['title', 'body', 'tags'], idField: 'id', searchOptions: { prefix: true, fuzzy: 0.2 } })
@@ -74,18 +100,21 @@ function Archive() {
 
   if (error) return <Notice title="The essays could not be loaded">{error}</Notice>
   if (!pubs) return <Skeleton />
-  if (all.length === 0) return <Notice title="Nothing is published yet">Publish a post in WriteFreely and it will appear here.</Notice>
+  if (alias && scoped.length === 0) return <Notice title="Blog not found" back>This blog is not in the catalog.</Notice>
+  if (pubs.every(p => p.essays.length === 0)) return <Notice title="Nothing is published yet">Publish a post in WriteFreely and it will appear here.</Notice>
 
   const searching = q.trim().length > 0
   const hits = searching ? new Set(index.search(q).map(r => r.id as string)) : null
-  const groups = pubs
-    .map(p => ({ ...p, essays: p.essays.filter(e => (hits ? hits.has(keyOf(e)) : keyOf(e) !== keyOf(latest))) }))
+  const groups = scoped
+    .map(p => ({ ...p, essays: p.essays.filter(e => (hits ? hits.has(keyOf(e)) : keyOf(e) !== (latest && keyOf(latest)))) }))
     .filter(g => g.essays.length)
-  const multi = pubs.length > 1
+  const multi = scoped.length > 1
 
   return (
     <>
-      {!searching && <Lead essay={latest} />}
+      {alias && <nav className="crumb" aria-label="Breadcrumb"><Link className="textlink" to="/catalog">Catalog</Link><span aria-hidden="true"> / </span><span aria-current="page">{scoped[0].title}</span></nav>}
+      {all.length === 0 && <p className="empty">This blog has no posts yet.</p>}
+      {!searching && latest && <Lead essay={latest} />}
       {(searching || groups.length > 0) && (
         <section className="contents" aria-labelledby="contents-title">
           <Reveal className="ledger contents-head">
@@ -100,7 +129,7 @@ function Archive() {
             <div key={g.alias}>
               {multi && <h3 className="group-title">{g.title}</h3>}
               <ol className="rows">
-                {g.essays.map((e, i) => <Reveal as="li" key={e.slug} delay={i % 4}><Row essay={e} level={multi ? 'h4' : 'h3'} /></Reveal>)}
+                {g.essays.map((e, i) => <Reveal as="li" key={keyOf(e)} delay={i % 4}><Row essay={e} level={multi ? 'h4' : 'h3'} /></Reveal>)}
               </ol>
             </div>
           ))}
@@ -142,10 +171,12 @@ function Layout() {
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
-      <Masthead compact={pathname !== '/'} />
+      <Masthead compact={!(pathname === '/' || pathname.startsWith('/catalog'))} />
       <main id="main" className="shell" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<Archive />} />
+          <Route path="/catalog" element={<Catalog />} />
+          <Route path="/catalog/:alias" element={<Archive />} />
           <Route path="/:alias/:slug" element={<EssayPage />} />
           <Route path="*" element={<Notice title="Page not found" back>There is nothing at this address.</Notice>} />
         </Routes>

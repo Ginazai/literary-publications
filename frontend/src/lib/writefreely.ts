@@ -1,9 +1,10 @@
-import { ALIASES } from '../config'
+import { BLOGS } from '../config'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
-export interface Essay { alias: string; slug: string; title: string; created: string; tags: string[]; body: string }
-export interface Publication { alias: string; title: string; essays: Essay[] }
+import { Essay, toEssay } from './post'
+export type { Essay }
+export interface Publication { alias: string; title: string; kind: string; essays: Essay[] }
 const BASE = (import.meta.env.VITE_WF_BASE as string) || '/wf'
 let cache: Promise<Publication[]> | null = null
 
@@ -14,20 +15,21 @@ async function getJson(path: string) {
   return res.json()
 }
 
-async function loadPublication(alias: string): Promise<Publication> {
+async function loadPublication({ alias, kind }: { alias: string; kind: string }): Promise<Publication> {
   const meta = await getJson(`collections/${alias}`).catch(() => null)
+  const title = meta?.data?.title || alias
   const essays: Essay[] = []
   for (let n = 1; n < 50; n++) {
     const json = await getJson(`collections/${alias}/posts?page=${n}`)
     const posts = json.data?.posts ?? []
     if (!posts.length) break
-    essays.push(...posts.map((p: any) => ({ alias, slug: p.slug, title: p.title || 'Untitled', created: p.created, tags: p.tags ?? [], body: p.body })))
+    essays.push(...posts.map((p: any) => toEssay(p, alias, title)))
   }
-  return { alias, title: meta?.data?.title || alias, essays }
+  return { alias, title, kind, essays }
 }
 
 export function getPublications(): Promise<Publication[]> {
-  cache ??= Promise.all(ALIASES.map(loadPublication))
+  cache ??= Promise.all(BLOGS.map(loadPublication))
   return cache
 }
 

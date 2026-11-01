@@ -28,7 +28,7 @@ One WriteFreely post is one essay. One public WriteFreely collection is one publ
 - `GET {BASE}/collections/{alias}` for the publication title (falls back to the alias if this fails).
 - `GET {BASE}/collections/{alias}/posts?page=n` until a page comes back empty (at most 49 pages).
 
-It keeps `slug`, `title` (or "Untitled"), `created`, `tags` and the Markdown `body`. The result is cached in memory for the life of the page; new posts appear after a reload.
+It keeps `slug`, `title`, `created`, `tags` and the Markdown `body`. WriteFreely sends an empty `title` and no `slug` for untitled posts, so an untitled post takes its blog's name as its title and its `id` as its slug (`lib/post.ts`). The result is cached in memory for the life of the page; new posts appear after a reload.
 
 `BASE` is `VITE_WF_BASE` if set, otherwise `/wf`, a same-origin path that Vite (dev) or Caddy (production) forwards to WriteFreely's `/api`. These field names and the pagination shape have **not yet been confirmed against a live instance** (task T1c).
 
@@ -48,7 +48,9 @@ The archive builds a MiniSearch index in the browser over every essay's title, b
 
 | Path | Page |
 |---|---|
-| `/` | Latest essay as a lead, then earlier essays (grouped by publication when there is more than one), with search |
+| `/` | Home: latest essay as a lead, then earlier essays (grouped by publication when there is more than one), with search |
+| `/catalog` | Catalog: one square per blog with its title and category |
+| `/catalog/:alias` | Home layout scoped to one blog, with a breadcrumb back to the catalog |
 | `/:alias/:slug` | One essay in the book reader |
 | anything else | "Page not found" notice |
 
@@ -63,7 +65,7 @@ frontend/
   src/
     main.tsx            fonts, styles, mount
     App.tsx             routes, archive (Lead, Row, search), essay page, notices
-    config.ts           SITE name/author, ALIASES from VITE_WF_ALIASES
+    config.ts           SITE name/author, BLOGS from VITE_WF_ALIASES
     components/         Masthead (with ThemeToggle), BookReader, Footer, Reveal
     lib/
       writefreely.ts    API client, Markdown -> sanitized HTML
@@ -87,7 +89,7 @@ docs/                   this documentation
 
 | Setting | Where | Notes |
 |---|---|---|
-| `VITE_WF_ALIASES` | `frontend/.env`, Render `reader` service | Comma-separated collection aliases. Build-time |
+| `VITE_WF_ALIASES` | `frontend/.env`, Render `reader` service | Comma-separated collection aliases, each optionally `alias:Category` (Blog, Novel, Notebook...; default Blog). Build-time |
 | `VITE_WF_BASE` | same | Full WriteFreely API URL. Leave unset to use the `/wf` proxy. Build-time |
 | `VITE_WF_DEV_TARGET` | `frontend/.env` | Where Vite's dev proxy sends `/wf` (default `http://localhost:8080`) |
 | Site name and author | `frontend/src/config.ts` | Placeholder name `test`. Also appears in `frontend/index.html` (`<title>`) and, for the WriteFreely side, `SITE_NAME` / `AUTHOR_NAME` in `render.yaml` |

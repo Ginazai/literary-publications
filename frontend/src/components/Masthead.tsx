@@ -18,7 +18,7 @@ export default function Masthead({ compact }: { compact: boolean }) {
   if (compact) return (
     <header className="masthead masthead--compact" id="top">
       <nav className="shell bar" aria-label="Primary">
-        <Link to="/" className="back"><ArrowLeft aria-hidden="true" weight="light" /><span>Essays</span></Link>
+        <Link to="/" className="back"><ArrowLeft aria-hidden="true" weight="light" /><span>Home</span></Link>
         <p className="brand"><Link to="/">{SITE.name}</Link></p>
         <div className="bar-end"><ThemeToggle /></div>
       </nav>
@@ -32,7 +32,8 @@ export default function Masthead({ compact }: { compact: boolean }) {
         <p className="tagline">Essays by {SITE.author}</p>
         <div className="rule" aria-hidden="true" />
         <nav className="primary-nav" aria-label="Primary">
-          <NavLink to="/" end>Essays</NavLink>
+          <NavLink to="/" end>Home</NavLink>
+          <NavLink to="/catalog">Catalog</NavLink>
           <ThemeToggle />
         </nav>
       </div>

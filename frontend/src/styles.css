@@ -104,6 +104,19 @@ main:focus { outline: none; }
 .bar-end { justify-self: end; }
 @media (max-width: 480px) { .bar .brand { font-size: 1rem; letter-spacing: .05em; } }
 
+/* ---- Catalog: one square cover per blog ---------------------------------- */
+.crumb { padding-top: 2rem; font-size: 1.125rem; color: var(--muted); font-style: italic; }
+.catalog { padding-block: clamp(3rem, 7vw, 5rem) clamp(5rem, 10vw, 9rem); }
+.tiles { list-style: none; padding: 0; margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 2.5rem 1.75rem; }
+.tile { display: grid; gap: .25rem; }
+.tile-cover { position: relative; aspect-ratio: 1; display: grid; place-items: center; background: var(--board); color: var(--accent); overflow: hidden; transition: background .5s var(--ease), transform .5s var(--ease); }
+.tile:hover .tile-cover, .tile:focus-visible .tile-cover { background: var(--surface); transform: translateY(-4px); }
+.tile-initial { font: italic 500 clamp(4rem, 9vw, 6rem)/1 var(--display); }
+.tile-count { position: absolute; right: .75rem; bottom: .5rem; font-style: italic; color: var(--muted); }
+.tile-title { margin-top: .75rem; font: 600 1.5rem/1.15 var(--display); color: var(--heading); text-wrap: balance; transition: color .4s var(--ease); }
+.tile:hover .tile-title { color: var(--accent); }
+.tile-kind { font-style: italic; color: var(--muted); }
+
 /* ---- Home: lead essay ---------------------------------------------------- */
 .lead { position: relative; padding-block: clamp(4rem, 9vw, 7rem) clamp(4rem, 8vw, 7rem); grid-template-areas: 'title' 'side' 'excerpt' 'cta'; }
 @media (min-width: 720px) { .lead { grid-template-areas: 'title title' 'side excerpt' '. cta'; } }
