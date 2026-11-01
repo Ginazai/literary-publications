@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reconcile one Render environment (staging | production) to a pinned commit.
+# Reconcile the Render environment to a wanted commit.
 #
 # Render deploy hooks answer 200 as soon as a deploy is *queued*, and Render keeps serving the old
 # version if the new one fails to build or boot. So "the hook returned 200" proves nothing. This

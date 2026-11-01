@@ -77,6 +77,14 @@ chmod 644 "$CERTS"/*.pem
 
 docker network create "$NET" >/dev/null
 
+# A service started without its database settings must fail at once with a clear message (it once
+# ran for a while and died with "dial tcp :3306: connection refused").
+if out=$(docker run --rm -e DB_USER=x -e DB_PASSWORD=x "$WF_IMAGE" 2>&1); then
+  echo "✗ entrypoint started without DB_HOST" >&2; exit 1
+fi
+grep -q 'DB_HOST' <<<"$out" || { echo "✗ missing-variable message does not name DB_HOST: $out" >&2; exit 1; }
+echo "✓ entrypoint refuses to start without DB_HOST"
+
 # ── Database ─────────────────────────────────────────────────────────────────────────────────
 docker run -d --name "$DB" --network "$NET" -v "$CERTS:/certs:ro" -e MYSQL_ROOT_PASSWORD="$ROOT_PW" \
   "$MYSQL_IMAGE" --ssl-ca=/certs/ca.pem --ssl-cert=/certs/server-cert.pem --ssl-key=/certs/server-key.pem >/dev/null

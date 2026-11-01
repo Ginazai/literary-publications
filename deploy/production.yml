@@ -1,9 +1,0 @@
-# Desired state of PRODUCTION: the one line below is the git commit production runs.
-#
-# Do not edit on the default branch. Changes arrive as a "promotion" pull request that cd.yml
-# opens after a commit has passed CI and been deployed to staging. Merging that PR (after review)
-# is what deploys, via .github/workflows/deploy-production.yml, which refuses to deploy a change
-# that did not come from a merged PR with an approving review.
-#
-# `none` = nothing promoted yet; the first merged promotion PR replaces it.
-commit: none

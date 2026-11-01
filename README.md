@@ -8,7 +8,7 @@ A personal publication for essays. [WriteFreely](https://writefreely.org/) is th
 | `docs/architecture.md` | How the system works today: content model, pagination, routes, source layout, configuration, deployment |
 | `docs/decisions/` | Architecture decision records (ADR-001 to ADR-006) |
 | `docs/technology-decision.md` | Why this stack, what was left out, and what changed from the original plan |
-| `docs/ci-cd.md` | CI checks, the staging to reviewed-production pipeline on Render, one-time setup, rollback |
+| `docs/ci-cd.md` | CI checks, the verified deploy pipeline on Render, one-time setup, rollback |
 | `docs/setup-writefreely.md` | Running WriteFreely: local trial, Aiven MySQL, Render, self-hosting |
 | `docs/design-system.md` | Tokens, type, components |
 | `tasks/` | Plan, risks and task list |
@@ -36,4 +36,4 @@ Vite proxies `/wf` to WriteFreely (`VITE_WF_DEV_TARGET`, default `http://localho
 Write and publish in WriteFreely. One post is one essay; one public blog (collection) is one publication, so list each blog's alias in `VITE_WF_ALIASES`. Write in Markdown. Put `<!-- pagebreak -->` on its own line to force a new page; otherwise pages are filled automatically.
 
 ## Deployment
-Self-hosted with Caddy (`ops/Caddyfile`) is the intended production setup. `render.yaml` deploys to Render (free plans sleep and keep no files; see `docs/setup-writefreely.md`, section C), driven by GitHub Actions through staging and a reviewed promotion (`docs/ci-cd.md`). Status of open work, including the unverified live-API check, is in `tasks/todo.md`.
+Self-hosted with Caddy (`ops/Caddyfile`) is the intended production setup. `render.yaml` deploys to Render (free plans sleep and keep no files; see `docs/setup-writefreely.md`, section C), driven by GitHub Actions: CI, then a verified deploy (`docs/ci-cd.md`). Status of open work, including the unverified live-API check, is in `tasks/todo.md`.

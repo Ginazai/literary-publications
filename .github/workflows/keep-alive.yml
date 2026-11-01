@@ -3,12 +3,12 @@
 #
 # Off by default. It does nothing until the repository VARIABLE KEEP_ALIVE_URL is set
 # (Settings -> Secrets and variables -> Actions -> Variables), for example:
-#     https://<production-writefreely>.onrender.com/api/collections/<alias>/posts?page=999
+#     https://<your-writefreely>.onrender.com/api/collections/<alias>/posts?page=999
 # That URL returns an empty page, so it is cheap, but it still queries the database.
 #
 # Read before enabling:
-#  * Ping PRODUCTION WriteFreely only. Render's free plan gives 750 instance hours a month,
-#    and one service awake 24/7 uses about 744 of them. Two would not fit. Check your plan.
+#  * Render's free plan gives 750 instance hours a month, and one service awake 24/7 uses
+#    about 744 of them. Check your plan before enabling this.
 #  * GitHub cron is best-effort (runs can be delayed by minutes), and GitHub disables scheduled
 #    workflows in a repository with no activity for 60 days.
 #  * A paid always-on instance is the reliable fix; this is the free workaround.

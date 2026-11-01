@@ -1,7 +1,7 @@
 name: Deploy to Render (reusable)
 
-# Called by cd.yml for `staging` and by deploy-production.yml for `production`. Each GitHub
-# Environment holds its own secrets/variables, so the same code deploys different Render services:
+# Called by cd.yml. The GitHub Environment named by `environment` ("production") holds the secrets
+# and variables for the Render services:
 #
 #   secrets    RENDER_WRITEFREELY_DEPLOY_HOOK   deploy hook URL of the WriteFreely service
 #              RENDER_READER_DEPLOY_HOOK        deploy hook URL of the reader (static site)
@@ -12,16 +12,16 @@ name: Deploy to Render (reusable)
 # Both URLs are REQUIRED: the deploy is only reported as successful once the new commit is
 # verifiably serving (see scripts/ci/render-deploy.sh), and that needs somewhere to look.
 #
-# This workflow does NOT decide whether a deploy is allowed. Callers do:
-#   staging     cd.yml, automatically after CI passes on the default branch
-#   production  deploy-production.yml, only for a change from an approved, merged promotion PR
+# This workflow does NOT decide whether a deploy is allowed. cd.yml does: only after CI passed on
+# the default branch, or a manual rollback to a commit already on it.
 on:
   workflow_call:
     inputs:
       environment:
-        description: GitHub Environment to deploy (staging | production)
+        description: GitHub Environment to deploy
         type: string
-        required: true
+        required: false
+        default: production
       commit:
         description: Full 40-character commit SHA to deploy
         type: string
@@ -31,16 +31,6 @@ on:
         type: number
         required: false
         default: 0
-      approved_by:
-        description: Who approved this change (shown in the deployment summary)
-        type: string
-        required: false
-        default: ""
-      change_url:
-        description: Link to the PR that authorised this deploy (shown in the summary)
-        type: string
-        required: false
-        default: ""
 
 permissions:
   contents: read
@@ -58,10 +48,7 @@ jobs:
     steps:
       - name: Validate inputs
         run: |
-          case "$ENVIRONMENT" in
-            staging|production) ;;
-            *) echo "::error::environment must be 'staging' or 'production' (got '$ENVIRONMENT')"; exit 1 ;;
-          esac
+          [[ "$ENVIRONMENT" =~ ^[a-z][a-z-]*$ ]] || { echo "::error::invalid environment name '$ENVIRONMENT'"; exit 1; }
           [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::commit must be a full 40-character SHA (got '$COMMIT')"; exit 1; }
         shell: bash
       # Scripts always come from the default branch, never from the commit being deployed, so a
@@ -101,7 +88,7 @@ jobs:
           missing=""
           for v in WF_HOOK READER_HOOK WF_URL READER_URL; do [ -n "${!v}" ] || missing="$missing $v"; done
           if [ -n "$missing" ]; then
-            echo "::error title=Environment '${ENVIRONMENT}' is not configured::missing:$missing. Secrets RENDER_WRITEFREELY_DEPLOY_HOOK and RENDER_READER_DEPLOY_HOOK, variables WF_URL and READER_URL (docs/ci-cd.md, step 4)."
+            echo "::error title=Environment '${ENVIRONMENT}' is not configured::missing:$missing. Secrets RENDER_WRITEFREELY_DEPLOY_HOOK and RENDER_READER_DEPLOY_HOOK, variables WF_URL and READER_URL (docs/ci-cd.md, step 3)."
             exit 1
           fi
         shell: bash
@@ -109,9 +96,6 @@ jobs:
         with:
           fetch-depth: 0   # render-deploy.sh diffs the live commit against the wanted one
       - name: Summary header
-        env:
-          APPROVERS: ${{ inputs.approved_by }}
-          CHANGE_URL: ${{ inputs.change_url }}
         run: |
           {
             echo "### Deploy · ${ENVIRONMENT}"
@@ -120,8 +104,6 @@ jobs:
             echo "|---|---|"
             echo "| Commit | [${COMMIT:0:7}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${COMMIT}) |"
             echo "| Triggered by | ${GITHUB_ACTOR} |"
-            [ -n "${CHANGE_URL:-}" ] && echo "| Change | ${CHANGE_URL} |"
-            [ -n "${APPROVERS:-}" ] && echo "| Approved by | ${APPROVERS} |"
             echo "| Reader | ${READER_URL} |"
             echo "| Run | [#${GITHUB_RUN_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) |"
           } >> "$GITHUB_STEP_SUMMARY"

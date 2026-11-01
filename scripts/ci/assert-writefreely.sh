@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Read-only black-box checks of a running WriteFreely, from the reader's point of view.
-# Used by smoke-test.sh (CI, throwaway stack) and render-deploy.sh (staging/production).
+# Used by smoke-test.sh (CI, throwaway stack) and render-deploy.sh (the live deploy).
 # It never writes and needs no credentials, so it is safe to point at production.
 #
 # It checks what frontend/src/lib/writefreely.ts depends on, verified against v0.17.2:
