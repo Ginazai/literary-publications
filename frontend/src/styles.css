@@ -63,6 +63,9 @@ main:focus { outline: none; }
 @media (min-width: 720px) { .ledger { grid-template-columns: var(--axis) minmax(0, 1fr); } }
 .side { font-style: italic; color: var(--muted); font-size: 1rem; line-height: 1.5; }
 .side > * { display: block; }
+/* The blog a post belongs to: a link back to it, above the date, lifted over the lead's stretched link. */
+.side-blog { position: relative; z-index: 1; justify-self: start; padding-block: .25rem; color: var(--accent); font-style: normal; font-weight: 500; transition: color .4s var(--ease); }
+.side-blog:hover { color: var(--accent-hover); text-decoration: underline; text-underline-offset: .25em; }
 
 /* ---- Controls ------------------------------------------------------------ */
 .icon-btn { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
@@ -109,6 +112,7 @@ main:focus { outline: none; }
 .catalog { padding-block: clamp(3rem, 7vw, 5rem) clamp(5rem, 10vw, 9rem); }
 .tiles { list-style: none; padding: 0; margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 2.5rem 1.75rem; }
 .tile { display: grid; gap: .25rem; }
+.catalog > .contents-title, .crumb { animation: rise 1s var(--ease-out) both; } /* same arrival as the lead on Home */
 .tile-cover { position: relative; aspect-ratio: 1; display: grid; place-items: center; background: var(--board); color: var(--accent); overflow: hidden; transition: background .5s var(--ease), transform .5s var(--ease); }
 .tile:hover .tile-cover, .tile:focus-visible .tile-cover { background: var(--surface); transform: translateY(-4px); }
 .tile-initial { font: italic 500 clamp(4rem, 9vw, 6rem)/1 var(--display); }
@@ -218,6 +222,7 @@ main:focus { outline: none; }
 .skeleton .bar--title { grid-area: title; height: clamp(2.5rem, 5vw, 4.5rem); width: 70%; margin-bottom: 2rem; }
 .skeleton .bar--row { grid-area: title; height: 1.75rem; width: 60%; }
 .skeleton .bar--meta { grid-area: side; width: 7rem; margin-bottom: .75rem; }
+.skeleton .bar--tile { aspect-ratio: 1; height: auto; }
 .skeleton .bar--text { grid-area: excerpt; width: min(32rem, 100%); height: 3rem; }
 
 /* ---- Footer -------------------------------------------------------------- */

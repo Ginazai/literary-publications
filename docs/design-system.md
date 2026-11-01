@@ -33,6 +33,8 @@ Type, as set in `styles.css`:
 | Plain-text view | 20px / 1.6 |
 | Display headings (Cormorant Garamond) | fluid with `clamp()`: essay and lead titles about 36–72px, row titles 24–32px, brand name 36–56px, "Earlier essays" 32px |
 
+Navigation: Home, Catalog and a blog keep the reader's scroll position; only opening or leaving a post returns to the top. Loaded data is reused, so a page change never flashes a skeleton. Every browsing page arrives the same way: headings rise as the lead does, tiles and rows stagger in with `Reveal` + `.part`.
+
 Motion: `--ease` and `--ease-out` (custom cubic-béziers). Entrances and hover effects use transform and opacity; the one exception is the progress ribbon, which transitions `width`. The page turn is 0.7s. Everything is reduced to near-instant under `prefers-reduced-motion`, and the reader then changes pages without animating.
 
 ## Components

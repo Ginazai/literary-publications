@@ -3,7 +3,7 @@ import { BrowserRouter, Link, Route, Routes, useLocation, useParams } from 'reac
 import { ArrowRight } from '@phosphor-icons/react'
 import MiniSearch from 'minisearch'
 import { SITE } from './config'
-import { Essay as EssayData, Publication, getPublications, renderBody } from './lib/writefreely'
+import { Essay as EssayData, Publication, getPublications, loadedPublications, renderBody } from './lib/writefreely'
 import { excerpt } from './lib/excerpt'
 import { longDate, minutes } from './lib/format'
 import BookReader from './components/BookReader'
@@ -12,9 +12,9 @@ import Footer from './components/Footer'
 import Reveal from './components/Reveal'
 
 function usePubs() {
-  const [pubs, setPubs] = useState<Publication[] | null>(null)
+  const [pubs, setPubs] = useState<Publication[] | null>(loadedPublications)
   const [error, setError] = useState('')
-  useEffect(() => { getPublications().then(setPubs).catch(e => setError(e.message)) }, [])
+  useEffect(() => { if (!pubs) getPublications().then(setPubs).catch(e => setError(e.message)) }, [pubs])
   return { pubs, error }
 }
 const useTitle = (title: string) => useEffect(() => { document.title = title }, [title])
@@ -25,15 +25,15 @@ function Notice({ title, children, back }: { title: string; children: ReactNode;
   return <div className="notice" role="alert"><h2>{title}</h2><p>{children}</p>{back && <Link className="textlink" to="/">Home</Link>}</div>
 }
 
-function Meta({ essay, className = '' }: { essay: EssayData; className?: string }) {
-  return <p className={`side ${className}`}><time dateTime={essay.created}>{longDate(essay.created)}</time><span>{minutes(essay.body)} min read</span></p>
+function Meta({ essay, blog, className = '' }: { essay: EssayData; blog?: Publication; className?: string }) {
+  return <p className={`side ${className}`}>{blog && <Link className="side-blog" to={`/catalog/${blog.alias}`}>{blog.title}</Link>}<time dateTime={essay.created}>{longDate(essay.created)}</time><span>{minutes(essay.body)} min read</span></p>
 }
 
-function Lead({ essay }: { essay: EssayData }) {
+function Lead({ essay, blog }: { essay: EssayData; blog?: Publication }) {
   return (
     <article className="lead ledger" aria-labelledby="lead-title">
       <h2 id="lead-title" className="lead-title">{essay.title}</h2>
-      <Meta essay={essay} />
+      <Meta essay={essay} blog={blog} />
       <p className="lead-excerpt">{excerpt(essay.body, 260)}</p>
       <Link className="btn stretch" to={pathOf(essay)}>Read the post<span className="sr">: {essay.title}</span><ArrowRight aria-hidden="true" weight="light" /></Link>
     </article>
@@ -65,14 +65,14 @@ function Catalog() {
   const { pubs, error } = usePubs()
   useTitle(`Catalog · ${SITE.name}`)
   if (error) return <Notice title="The catalog could not be loaded">{error}</Notice>
-  if (!pubs) return <Skeleton />
+  if (!pubs) return <ul className="tiles skeleton" role="status" aria-label="Loading blogs">{[0, 1, 2].map(i => <li key={i}><span className="bar bar--tile" /></li>)}</ul>
   return (
     <section className="catalog" aria-labelledby="catalog-title">
       <h2 id="catalog-title" className="contents-title">Catalog</h2>
       <ul className="tiles">
         {pubs.map((p, i) => (
           <Reveal as="li" key={p.alias} delay={i % 4}>
-            <Link className="tile" to={`/catalog/${p.alias}`}>
+            <Link className="tile part" to={`/catalog/${p.alias}`}>
               <span className="tile-cover" aria-hidden="true"><span className="tile-initial">{p.title.charAt(0)}</span><span className="tile-count">{p.essays.length}</span></span>
               <span className="tile-title">{p.title}</span>
               <span className="tile-kind">{p.kind}<span className="sr">, {p.essays.length} posts</span></span>
@@ -114,7 +114,7 @@ function Archive() {
     <>
       {alias && <nav className="crumb" aria-label="Breadcrumb"><Link className="textlink" to="/catalog">Catalog</Link><span aria-hidden="true"> / </span><span aria-current="page">{scoped[0].title}</span></nav>}
       {all.length === 0 && <p className="empty">This blog has no posts yet.</p>}
-      {!searching && latest && <Lead essay={latest} />}
+      {!searching && latest && <Lead key={keyOf(latest)} essay={latest} blog={alias ? undefined : scoped.find(p => p.alias === latest.alias)} />}
       {(searching || groups.length > 0) && (
         <section className="contents" aria-labelledby="contents-title">
           <Reveal className="ledger contents-head">
@@ -143,7 +143,8 @@ function EssayPage() {
   const { alias, slug } = useParams()
   const { pubs, error } = usePubs()
   const [plain, setPlain] = useState(false)
-  const essay = pubs?.find(p => p.alias === alias)?.essays.find(e => e.slug === slug)
+  const blog = pubs?.find(p => p.alias === alias)
+  const essay = blog?.essays.find(e => e.slug === slug)
   useTitle(essay ? `${essay.title} · ${SITE.name}` : SITE.name)
   if (error) return <Notice title="The post could not be loaded" back>{error}</Notice>
   if (!pubs) return <div className="cover"><div className="book-skeleton" role="status" aria-label="Loading post" /></div>
@@ -154,7 +155,7 @@ function EssayPage() {
       <h1 className="essay-title">{essay.title}</h1>
       <div className="ledger essay-body">
         <div className="essay-side">
-          <Meta essay={essay} />
+          <Meta essay={essay} blog={blog} />
           <button type="button" className="linkbtn" onClick={() => setPlain(p => !p)}>{plain ? 'Show book view' : 'Show plain text'}</button>
         </div>
         <div className="essay-main">
@@ -167,16 +168,18 @@ function EssayPage() {
 
 function Layout() {
   const { pathname } = useLocation()
-  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  const browsing = pathname === '/' || pathname.startsWith('/catalog')
+  // Home, Catalog and a blog keep the reader's place; only opening or leaving a post starts at the top.
+  useEffect(() => { window.scrollTo(0, 0) }, [browsing])
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
-      <Masthead compact={!(pathname === '/' || pathname.startsWith('/catalog'))} />
+      <Masthead compact={!browsing} />
       <main id="main" className="shell" tabIndex={-1}>
         <Routes>
-          <Route path="/" element={<Archive />} />
+          <Route path="/" element={<Archive key="home" />} />
           <Route path="/catalog" element={<Catalog />} />
-          <Route path="/catalog/:alias" element={<Archive />} />
+          <Route path="/catalog/:alias" element={<Archive key="blog" />} />
           <Route path="/:alias/:slug" element={<EssayPage />} />
           <Route path="*" element={<Notice title="Page not found" back>There is nothing at this address.</Notice>} />
         </Routes>

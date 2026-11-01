@@ -7,6 +7,7 @@ export type { Essay }
 export interface Publication { alias: string; title: string; kind: string; essays: Essay[] }
 const BASE = (import.meta.env.VITE_WF_BASE as string) || '/wf'
 let cache: Promise<Publication[]> | null = null
+let loaded: Publication[] | null = null
 
 async function getJson(path: string) {
   // WriteFreely answers the blog-info request with a redirect to the HTML page unless Accept is exactly this.
@@ -30,9 +31,12 @@ async function loadPublication(alias: string): Promise<Publication> {
 }
 
 export function getPublications(): Promise<Publication[]> {
-  cache ??= Promise.all(ALIASES.map(loadPublication))
+  cache ??= Promise.all(ALIASES.map(loadPublication)).then(p => (loaded = p))
   return cache
 }
+
+/** The publications if they have already loaded, so a page change renders them at once instead of flashing a skeleton. */
+export const loadedPublications = () => loaded
 
 /** Markdown -> sanitized HTML. `<!-- pagebreak -->` becomes a forced page break. */
 export function renderBody(md: string): string {
