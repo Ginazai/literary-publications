@@ -36,7 +36,7 @@ Type, as set in `styles.css`:
 Motion: `--ease` and `--ease-out` (custom cubic-béziers). Entrances and hover effects use transform and opacity; the one exception is the progress ribbon, which transitions `width`. The page turn is 0.7s. Everything is reduced to near-instant under `prefers-reduced-motion`, and the reader then changes pages without animating.
 
 ## Components
-`Masthead` (full on home, slim bar on essays; contains `ThemeToggle`) · `Footer` · `Reveal` (staggered entrance when scrolled into view) · `BookReader` (cover board, page, running head, folio, round turn buttons, progress ribbon) live in `src/components/`. `Lead` (latest essay, one call to action), `Row`, `Meta`, `Notice` and `Skeleton` (loading placeholder) live in `src/App.tsx`. A skip link and the search field are part of the page layout.
+`Masthead` (full on home, slim bar on essays; contains `ThemeToggle`) · `Footer` · `Reveal` (staggered entrance when scrolled into view) · `BookReader` (cover board, page, running head, folio, round turn buttons, progress ribbon) live in `src/components/`. `Catalog` (square board-tone covers, title and category below), `Lead` (latest essay, one call to action), `Row`, `Meta`, `Notice` and `Skeleton` (loading placeholder) live in `src/App.tsx`. A skip link and the search field are part of the page layout.
 
 ## What changed from the Lamplighter, and why
 | Change | Reason |
