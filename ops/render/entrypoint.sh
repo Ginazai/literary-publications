@@ -4,6 +4,19 @@
 set -e
 cd /writefreely
 
+# Fail fast with a clear message. Without this a missing DB_HOST silently becomes `host = `,
+# WriteFreely retries "dial tcp :3306" and the deploy dies with an unhelpful log.
+missing=""
+for name in DB_HOST DB_USER DB_PASSWORD; do
+  eval "value=\${$name:-}"
+  [ -n "$value" ] || missing="$missing $name"
+done
+if [ -n "$missing" ]; then
+  echo "ERROR: required environment variable(s) not set:$missing" >&2
+  echo "Set them in the Render dashboard (service -> Environment). DB_PORT is also needed for Aiven (not 3306)." >&2
+  exit 1
+fi
+
 # Deployment marker: the CD pipeline reads this to confirm which commit is really serving, because
 # Render keeps the old version running when a new deploy fails. Render sets RENDER_GIT_COMMIT.
 # It must be a .js file: WriteFreely answers unknown *.txt paths with HTTP 200 but 404s missing .js.

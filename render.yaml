@@ -1,14 +1,11 @@
-# Render Blueprint: production + staging.
+# Render Blueprint: one production environment (two services).
 #
 # DEPLOYS ARE DRIVEN BY GITHUB ACTIONS (docs/ci-cd.md), not by Render's git auto-deploy:
-#   * every service sets `autoDeployTrigger: "off"`, otherwise a push would bypass staging and review
+#   * every service sets `autoDeployTrigger: "off"`, otherwise a push would deploy without CI
 #   * the pipeline calls each service's deploy hook with `&ref=<commit>` (see .github/workflows)
 # scripts/ci/check-blueprint.py enforces these rules in CI.
 #
-# Staging uses its own WriteFreely service AND its own database (DB_NAME), never production's.
-# Aiven free tier: create a second database in the same service (see docs/ci-cd.md).
 services:
-  # ───────────────────────────── production ─────────────────────────────
   - type: web
     name: writefreely
     runtime: docker
@@ -55,57 +52,6 @@ services:
         value: test
       - key: VITE_WF_BASE
         sync: false       # e.g. https://writefreely-xxxx.onrender.com/api
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-
-  # ────────────────────────────── staging ───────────────────────────────
-  - type: web
-    name: writefreely-staging
-    runtime: docker
-    plan: free
-    dockerfilePath: ./ops/render/Dockerfile
-    dockerContext: ./ops/render
-    autoDeployTrigger: "off"
-    healthCheckPath: /
-    envVars:
-      - key: PUBLIC_URL
-        sync: false       # e.g. https://writefreely-staging-xxxx.onrender.com
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: AIVEN_CA_CERT
-        sync: false
-      - key: DB_NAME
-        value: writefreely_staging   # must differ from production's DB_NAME (checked in CI)
-      - key: ADMIN_USER
-        sync: false
-      - key: ADMIN_PASSWORD
-        sync: false
-      - key: SITE_NAME
-        value: test (staging)
-      - key: AUTHOR_NAME
-        value: Rafael Caballero
-  - type: web
-    name: reader-staging
-    runtime: static
-    rootDir: frontend
-    buildCommand: npm ci && npm run build && printf '{"commit":"%s"}\n' "${RENDER_GIT_COMMIT:-unknown}" > dist/version.json
-    staticPublishPath: dist
-    autoDeployTrigger: "off"
-    envVars:
-      - key: NODE_VERSION
-        value: "22"
-      - key: VITE_WF_ALIASES
-        value: test
-      - key: VITE_WF_BASE
-        sync: false       # e.g. https://writefreely-staging-xxxx.onrender.com/api
     routes:
       - type: rewrite
         source: /*

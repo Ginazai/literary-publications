@@ -5,12 +5,12 @@
 This checks only what would silently break or endanger the pipeline:
 
   1. Every service has autoDeployTrigger: "off" (string, quoted: bare `off` is a YAML 1.1
-     boolean). Otherwise a push deploys straight from git and skips staging and review.
+     boolean). Otherwise a push deploys straight from git and skips CI.
   2. Secret-looking variables are never committed as `value:` (use `sync: false`).
   3. Static (reader) services stamp dist/version.json from RENDER_GIT_COMMIT, which is how the
      pipeline proves a deploy is live, and keep the SPA rewrite for deep links.
   4. Services have unique names, and no two WriteFreely services share a DB_NAME
-     (staging must never write to the production database).
+     (a second environment must never write to another one's database).
 
 Run from the repository root:  python3 scripts/ci/check-blueprint.py [render.yaml]
 """
