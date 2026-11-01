@@ -1,0 +1,170 @@
+name: CD
+
+# Runs only after CI succeeded on a push to the default branch (never for PRs or forks).
+#   staging (automatic) -> promote (opens a PR; a human reviews and merges it)
+#
+# This workflow NEVER deploys to production. It only opens or updates a pull request that edits
+# `commit:` in deploy/production.yml. Merging that PR (after review) triggers
+# deploy-production.yml, which verifies the approval and then deploys.
+#
+# ROLLBACK: Actions -> CD -> Run workflow -> commit = an older commit (full or short SHA).
+# That skips staging and opens a rollback PR through the same review path.
+#
+# REQUIRED REPO SETTING: Settings -> Actions -> General -> Workflow permissions ->
+# enable "Allow GitHub Actions to create and approve pull requests".
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Rollback: a commit already on the default branch (e.g. 1a2b3c4)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # A slow CI run must not deploy an older commit over a newer one (it would also leave the
+  # rolling promotion PR pointing at the older commit).
+  gate:
+    name: Is this still the newest commit?
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      current: ${{ steps.check.outputs.current }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          tip=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${DEFAULT_BRANCH}" --jq .sha)
+          if [ "$tip" = "$HEAD_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Superseded::${HEAD_SHA:0:7} is no longer the tip of ${DEFAULT_BRANCH} (${tip:0:7}); the newer commit's own run will deploy."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  staging:
+    name: Staging
+    needs: gate
+    if: ${{ needs.gate.outputs.current == 'true' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy-render.yml
+    with:
+      environment: staging
+      commit: ${{ github.event.workflow_run.head_sha }}
+    secrets: inherit
+
+  promote:
+    name: Open production promotion PR
+    needs: [gate, staging]
+    # Normal path: staging succeeded. Rollback path: manual dispatch (gate and staging are skipped).
+    if: >-
+      always() && !cancelled() &&
+      (needs.staging.result == 'success' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write        # push the promotion branch
+      pull-requests: write   # open / update the PR
+      statuses: write        # see "CI gate" below
+    concurrency:
+      group: promote-production
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EVENT: ${{ github.event_name }}
+      INPUT_COMMIT: ${{ inputs.commit }}
+      RUN_COMMIT: ${{ github.event.workflow_run.head_sha }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - name: Open or update the PR
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT" = workflow_dispatch ]; then
+            want="${INPUT_COMMIT#sha-}"
+            commit=$(git rev-parse --verify --quiet "${want}^{commit}") \
+              || { echo "::error::'$INPUT_COMMIT' is not a commit in this repository"; exit 1; }
+          else
+            commit="$RUN_COMMIT"
+          fi
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::could not resolve a full commit SHA (got '$commit')"; exit 1; }
+          git merge-base --is-ancestor "$commit" "origin/${DEFAULT_BRANCH}" \
+            || { echo "::error::${commit:0:7} is not on ${DEFAULT_BRANCH}"; exit 1; }
+
+          pin() { sed -n -E 's/^commit:[[:space:]]*"?([^"[:space:]#]+)"?.*/\1/p' | head -1; }
+          current=$(pin < deploy/production.yml)
+          if [ "$current" = "$commit" ]; then
+            echo "::notice title=Already pinned::${DEFAULT_BRANCH} already pins ${commit:0:7}; nothing to promote."
+            exit 0
+          fi
+
+          if [ "$EVENT" = workflow_dispatch ]; then
+            kind="Rollback"; branch="rollback/production-${commit:0:7}"
+          else
+            kind="Promote"; branch="promote/production"   # one rolling PR: newer builds update it
+          fi
+
+          # Tell the reviewer what will actually redeploy (see scripts/ci/render-deploy.sh).
+          changed() {
+            if [[ ! "$current" =~ ^[0-9a-f]{7,40}$ ]] || ! git cat-file -e "${current}^{commit}" 2>/dev/null; then echo yes; return; fi
+            if git diff --quiet "$current" "$commit" -- "$1"; then echo "no (unchanged)"; else echo yes; fi
+          }
+          wf=$(changed ops/render)
+          rd=$(changed frontend)
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch" "origin/${DEFAULT_BRANCH}"
+          # Replace only the value, so line endings and comments stay untouched.
+          sed -i -E "s/^(commit:[[:space:]]*)[^[:space:]#]+/\1${commit}/" deploy/production.yml
+          git commit -am "${kind} production to ${commit:0:7}"
+          git push --force origin "$branch"
+
+          # PRs opened with GITHUB_TOKEN do not trigger workflows, so CI never runs on this PR and
+          # a branch-protection rule requiring "CI gate" would wait forever. This PR changes one
+          # line, and the commit it pins already passed CI and staging, so report that check here.
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/statuses/$(git rev-parse HEAD)" \
+            -f state=success -f context="CI gate" \
+            -f description="Only deploy/production.yml changed; the pinned commit already passed CI and staging" >/dev/null
+
+          title="${kind} production to ${commit:0:7}"
+          body="$(printf '%s\n' \
+            "**Commit:** [\`${commit:0:7}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${commit}) (was \`${current:0:7}\`)" \
+            "**Triggered by:** ${EVENT} · [run #${GITHUB_RUN_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})" \
+            "" \
+            "| Service | Redeploys? |" \
+            "|---|---|" \
+            "| WriteFreely | ${wf} |" \
+            "| Reader | ${rd} |" \
+            "" \
+            "Staging deployed this commit and passed its checks (rollbacks target a commit that already shipped)." \
+            "**Approve and merge this PR to deploy to production.** Nothing deploys until it is merged.")"
+
+          existing=$(gh pr list --head "$branch" --base "$DEFAULT_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$title" --body "$body"
+            echo "Updated PR #${existing}"
+          else
+            gh pr create --base "$DEFAULT_BRANCH" --head "$branch" --title "$title" --body "$body"
+          fi

@@ -4,6 +4,11 @@
 set -e
 cd /writefreely
 
+# Deployment marker: the CD pipeline reads this to confirm which commit is really serving, because
+# Render keeps the old version running when a new deploy fails. Render sets RENDER_GIT_COMMIT.
+# It must be a .js file: WriteFreely answers unknown *.txt paths with HTTP 200 but 404s missing .js.
+printf '/* build: %s */\n' "${RENDER_GIT_COMMIT:-dev}" > static/js/build-info.js
+
 # Aiven signs its MySQL servers with a private CA that is not in the system trust store.
 # Without this, WriteFreely fails with "x509: certificate signed by unknown authority".
 if [ -n "${AIVEN_CA_CERT}" ]; then
