@@ -33,7 +33,7 @@ Vite proxies `/wf` to WriteFreely (`VITE_WF_DEV_TARGET`, default `http://localho
 | `npm run preview` | Serve the production build |
 
 ## Writing essays
-Write and publish in WriteFreely. One post is one essay; one public blog (collection) is one publication, so list each blog's alias in `VITE_WF_ALIASES`, optionally with a category the catalog shows (`novel:Novel,diary:Notebook`). Write in Markdown. Put `<!-- pagebreak -->` on its own line to force a new page; otherwise pages are filled automatically.
+Write and publish in WriteFreely. One post is one essay; one public blog (collection) is one publication, so list each blog's alias in `VITE_WF_ALIASES`. The catalog shows each blog's title and format (Blog, Novel, Notebook) as set in WriteFreely. Write in Markdown. Put `<!-- pagebreak -->` on its own line to force a new page; otherwise pages are filled automatically.
 
 ## Deployment
 Self-hosted with Caddy (`ops/Caddyfile`) is the intended production setup. `render.yaml` deploys to Render (free plans sleep and keep no files; see `docs/setup-writefreely.md`, section C), driven by GitHub Actions: CI, then a verified deploy (`docs/ci-cd.md`). Status of open work, including the unverified live-API check, is in `tasks/todo.md`.

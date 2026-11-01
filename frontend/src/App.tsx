@@ -35,7 +35,7 @@ function Lead({ essay }: { essay: EssayData }) {
       <h2 id="lead-title" className="lead-title">{essay.title}</h2>
       <Meta essay={essay} />
       <p className="lead-excerpt">{excerpt(essay.body, 260)}</p>
-      <Link className="btn stretch" to={pathOf(essay)}>Read the essay<span className="sr">: {essay.title}</span><ArrowRight aria-hidden="true" weight="light" /></Link>
+      <Link className="btn stretch" to={pathOf(essay)}>Read the post<span className="sr">: {essay.title}</span><ArrowRight aria-hidden="true" weight="light" /></Link>
     </article>
   )
 }
@@ -53,7 +53,7 @@ function Row({ essay, level }: { essay: EssayData; level: 'h3' | 'h4' }) {
 
 function Skeleton() {
   return (
-    <div className="skeleton" role="status" aria-label="Loading essays">
+    <div className="skeleton" role="status" aria-label="Loading posts">
       <div className="lead ledger"><span className="bar bar--title" /><span className="bar bar--meta" /><span className="bar bar--text" /></div>
       {[0, 1, 2].map(i => <div className="row ledger" key={i}><span className="bar bar--row" /><span className="bar bar--meta" /><span className="bar bar--text" /></div>)}
     </div>
@@ -98,7 +98,7 @@ function Archive() {
     return m
   }, [all])
 
-  if (error) return <Notice title="The essays could not be loaded">{error}</Notice>
+  if (error) return <Notice title="The posts could not be loaded">{error}</Notice>
   if (!pubs) return <Skeleton />
   if (alias && scoped.length === 0) return <Notice title="Blog not found" back>This blog is not in the catalog.</Notice>
   if (pubs.every(p => p.essays.length === 0)) return <Notice title="Nothing is published yet">Publish a post in WriteFreely and it will appear here.</Notice>
@@ -118,13 +118,13 @@ function Archive() {
       {(searching || groups.length > 0) && (
         <section className="contents" aria-labelledby="contents-title">
           <Reveal className="ledger contents-head">
-            <h2 id="contents-title" className="contents-title part">{searching ? 'Results' : 'Earlier essays'}</h2>
+            <h2 id="contents-title" className="contents-title part">{searching ? 'Results' : 'Earlier posts'}</h2>
             <div className="search part">
-              <label htmlFor="q" className="sr">Search the essays</label>
-              <input id="q" type="search" autoComplete="off" placeholder="Search the essays" value={q} onChange={e => setQ(e.target.value)} />
+              <label htmlFor="q" className="sr">Search posts</label>
+              <input id="q" type="search" autoComplete="off" placeholder="Search posts" value={q} onChange={e => setQ(e.target.value)} />
             </div>
           </Reveal>
-          {searching && groups.length === 0 && <p className="empty">No essay matches “{q}”.</p>}
+          {searching && groups.length === 0 && <p className="empty">No post matches “{q}”.</p>}
           {groups.map(g => (
             <div key={g.alias}>
               {multi && <h3 className="group-title">{g.title}</h3>}
@@ -145,9 +145,9 @@ function EssayPage() {
   const [plain, setPlain] = useState(false)
   const essay = pubs?.find(p => p.alias === alias)?.essays.find(e => e.slug === slug)
   useTitle(essay ? `${essay.title} · ${SITE.name}` : SITE.name)
-  if (error) return <Notice title="The essay could not be loaded" back>{error}</Notice>
-  if (!pubs) return <div className="cover"><div className="book-skeleton" role="status" aria-label="Loading essay" /></div>
-  if (!essay) return <Notice title="Essay not found" back>This link may be old. Go back to the full list.</Notice>
+  if (error) return <Notice title="The post could not be loaded" back>{error}</Notice>
+  if (!pubs) return <div className="cover"><div className="book-skeleton" role="status" aria-label="Loading post" /></div>
+  if (!essay) return <Notice title="Post not found" back>This link may be old. Go back to the full list.</Notice>
   const html = renderBody(essay.body)
   return (
     <article className="essay">

@@ -48,7 +48,7 @@ tls      = true
 
 [app]
 site_name         = ${SITE_NAME:-test}
-site_description  = Essays by ${AUTHOR_NAME:-Rafael Caballero}
+site_description  = Writing by ${AUTHOR_NAME:-Rafael Caballero}
 host              = ${PUBLIC_URL}
 theme             = write
 single_user       = false

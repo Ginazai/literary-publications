@@ -13,7 +13,7 @@ function ThemeToggle() {
   )
 }
 
-/** Full masthead on the home page; a slim bar on essays so the book stays near the top of the screen. */
+/** Full masthead on the home page; a slim bar on posts so the book stays near the top of the screen. */
 export default function Masthead({ compact }: { compact: boolean }) {
   if (compact) return (
     <header className="masthead masthead--compact" id="top">
@@ -29,7 +29,7 @@ export default function Masthead({ compact }: { compact: boolean }) {
     <header className="masthead" id="top">
       <div className="shell masthead-inner">
         <h1 className="brand brand--xl">{SITE.name}</h1>
-        <p className="tagline">Essays by {SITE.author}</p>
+        <p className="tagline">By {SITE.author}</p>
         <div className="rule" aria-hidden="true" />
         <nav className="primary-nav" aria-label="Primary">
           <NavLink to="/" end>Home</NavLink>
