@@ -75,7 +75,9 @@ openssl x509 -req -in "$CERTS/server.csr" -CA "$CERTS/ca.pem" -CAkey "$CERTS/ca-
 # the directory traversable. mktemp -d creates it mode 700, which silently stops the server loading
 # its certificates (this failed the first CI run, with MySQL).
 chmod 755 "$CERTS"
-chmod 644 "$CERTS"/*.pem
+# TiDB has no TLS command-line flags; the certificate paths go in a config file.
+printf '[security]\nssl-cert = "/certs/server-cert.pem"\nssl-key = "/certs/server-key.pem"\n' > "$CERTS/tidb.toml"
+chmod 644 "$CERTS"/*.pem "$CERTS/tidb.toml"
 
 docker network create "$NET" >/dev/null
 
@@ -89,8 +91,7 @@ echo "✓ entrypoint refuses to start without DB_HOST"
 
 # ── Database ─────────────────────────────────────────────────────────────────────────────────
 docker run -d --name "$DB" --network "$NET" -v "$CERTS:/certs:ro" "$TIDB_IMAGE" \
-  --store=unistore --path="" --host=0.0.0.0 -P 4000 \
-  --ssl-cert=/certs/server-cert.pem --ssl-key=/certs/server-key.pem >/dev/null
+  --config=/certs/tidb.toml >/dev/null
 # The TiDB image has no mysql client, so use a throwaway client container. Standalone TiDB's root has no password.
 mysql_root() { docker run --rm -i --network "$NET" "$MYSQL_IMAGE" mysql -h "$DB" -P 4000 -uroot "$@"; }
 wait_until "tidb" 60 "$DB" mysql_root -e 'SELECT 1'
