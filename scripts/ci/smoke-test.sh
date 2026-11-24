@@ -1,33 +1,35 @@
 #!/usr/bin/env bash
-# Boots the WriteFreely image next to a throwaway MySQL that mimics Aiven, then checks the API
-# contract the reader depends on. Catches what unit tests cannot: a broken Dockerfile or
-# entrypoint, a CA/TLS regression (ADR-004's "x509: unknown authority"), a WriteFreely upgrade that
+# Boots the WriteFreely image next to a throwaway TiDB, then checks the API contract the reader
+# depends on. Catches what unit tests cannot: a broken Dockerfile or entrypoint, TiDB rejecting
+# WriteFreely's schema or migrations (ADR-007), a TLS regression, a WriteFreely upgrade that
 # changes the API, and a second start that fails (Render's free plan restarts the container often).
 #
-# MySQL is configured like Aiven: TLS signed by a PRIVATE CA, a user that REQUIRES SSL, the
-# database created latin1 as docs/setup-writefreely.md says. The CA is passed to the image as
-# AIVEN_CA_CERT exactly as on Render, and WriteFreely verifies the server name against it.
+# TiDB runs standalone (in-memory unistore) with TLS and a user that REQUIRES SSL, the database
+# created as docs/setup-writefreely.md says. TiDB Cloud's certificate comes from a public CA;
+# here a private CA is used instead and passed as DB_CA_CERT, which also exercises that path.
 #
 #   WF_IMAGE           default literary-writefreely:ci
-#   MYSQL_IMAGE        default mysql:8.4
+#   TIDB_IMAGE         default pingcap/tidb:v8.5.1
+#   MYSQL_IMAGE        client only, default mysql:8.4
 #   RENDER_GIT_COMMIT  commit the build marker must report (default: git HEAD)
 set -euo pipefail
 
 WF_IMAGE="${WF_IMAGE:-literary-writefreely:ci}"
+TIDB_IMAGE="${TIDB_IMAGE:-pingcap/tidb:v8.5.1}"
 MYSQL_IMAGE="${MYSQL_IMAGE:-mysql:8.4}"
 COMMIT="${RENDER_GIT_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo 0123456789abcdef0123456789abcdef01234567)}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 SUFFIX="$$"
 NET="wf-smoke-$SUFFIX"
-DB="wf-smoke-mysql-$SUFFIX"   # also the DNS name in the server certificate
+DB="wf-smoke-tidb-$SUFFIX"   # also the DNS name in the server certificate
 APP="wf-smoke-app-$SUFFIX"
 PORT=18090
 BASE="http://127.0.0.1:$PORT"
 CERTS="$(mktemp -d)"
 
 rand() { head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c "${1:-24}"; }
-ROOT_PW="$(rand)"; DB_PW="$(rand)"; ADMIN_PW="$(rand 28)"   # throwaway, per run, never reused
+DB_PW="$(rand)"; ADMIN_PW="$(rand 28)"   # throwaway, per run, never reused
 
 cleanup() {
   status=$?
@@ -61,7 +63,7 @@ wait_until() {
 
 app_ready() { curl -fsS --max-time 3 "$BASE/"; }
 
-# ── Private CA + server certificate whose SAN is the MySQL container's hostname ──────────────
+# ── Private CA + server certificate whose SAN is the TiDB container's hostname ──────────────
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=smoke-ca" \
   -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" \
   -keyout "$CERTS/ca-key.pem" -out "$CERTS/ca.pem" 2>/dev/null
@@ -69,9 +71,9 @@ openssl req -newkey rsa:2048 -nodes -subj "/CN=$DB" -keyout "$CERTS/server-key.p
 printf 'subjectAltName=DNS:%s\nbasicConstraints=CA:FALSE\n' "$DB" > "$CERTS/ext.cnf"
 openssl x509 -req -in "$CERTS/server.csr" -CA "$CERTS/ca.pem" -CAkey "$CERTS/ca-key.pem" -CAcreateserial \
   -days 1 -extfile "$CERTS/ext.cnf" -out "$CERTS/server-cert.pem" 2>/dev/null
-# The mysql user inside the container (uid 999, not the runner user) must be able to read the files
-# AND traverse the directory. mktemp -d creates it mode 700, which silently stops MySQL loading its
-# certificates: that is what failed the first CI run.
+# The database process in the container is not the runner user, so the files must be readable and
+# the directory traversable. mktemp -d creates it mode 700, which silently stops the server loading
+# its certificates (this failed the first CI run, with MySQL).
 chmod 755 "$CERTS"
 chmod 644 "$CERTS"/*.pem
 
@@ -86,21 +88,22 @@ grep -q 'DB_HOST' <<<"$out" || { echo "✗ missing-variable message does not nam
 echo "✓ entrypoint refuses to start without DB_HOST"
 
 # ── Database ─────────────────────────────────────────────────────────────────────────────────
-docker run -d --name "$DB" --network "$NET" -v "$CERTS:/certs:ro" -e MYSQL_ROOT_PASSWORD="$ROOT_PW" \
-  "$MYSQL_IMAGE" --ssl-ca=/certs/ca.pem --ssl-cert=/certs/server-cert.pem --ssl-key=/certs/server-key.pem >/dev/null
-# TCP on 127.0.0.1 only answers from the final server, not the image's temporary init server.
-mysql_root() { docker exec -i -e MYSQL_PWD="$ROOT_PW" "$DB" mysql -h127.0.0.1 -uroot "$@"; }
-wait_until "mysql" 60 "$DB" mysql_root -e 'SELECT 1'
+docker run -d --name "$DB" --network "$NET" -v "$CERTS:/certs:ro" "$TIDB_IMAGE" \
+  --store=unistore --path="" --host=0.0.0.0 -P 4000 \
+  --ssl-cert=/certs/server-cert.pem --ssl-key=/certs/server-key.pem >/dev/null
+# The TiDB image has no mysql client, so use a throwaway client container. Standalone TiDB's root has no password.
+mysql_root() { docker run --rm -i --network "$NET" "$MYSQL_IMAGE" mysql -h "$DB" -P 4000 -uroot "$@"; }
+wait_until "tidb" 60 "$DB" mysql_root -e 'SELECT 1'
 mysql_root --batch >/dev/null <<SQL
-CREATE DATABASE writefreely CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+CREATE DATABASE writefreely CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 CREATE USER 'wf'@'%' IDENTIFIED BY '$DB_PW' REQUIRE SSL;
 GRANT ALL ON writefreely.* TO 'wf'@'%';
 SQL
 
 # ── WriteFreely, configured exactly as render.yaml configures it ─────────────────────────────
 docker run -d --name "$APP" --network "$NET" -p "127.0.0.1:$PORT:10000" \
-  -e DB_HOST="$DB" -e DB_PORT=3306 -e DB_USER=wf -e DB_PASSWORD="$DB_PW" -e DB_NAME=writefreely \
-  -e AIVEN_CA_CERT="$(cat "$CERTS/ca.pem")" -e PUBLIC_URL="$BASE" \
+  -e DB_HOST="$DB" -e DB_PORT=4000 -e DB_USER=wf -e DB_PASSWORD="$DB_PW" -e DB_NAME=writefreely \
+  -e DB_CA_CERT="$(cat "$CERTS/ca.pem")" -e PUBLIC_URL="$BASE" \
   -e ADMIN_USER=ciadmin -e ADMIN_PASSWORD="$ADMIN_PW" \
   -e RENDER_GIT_COMMIT="$COMMIT" \
   "$WF_IMAGE" >/dev/null

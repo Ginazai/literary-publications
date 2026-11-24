@@ -30,6 +30,16 @@ async function loadPublication(alias: string): Promise<Publication> {
   return { alias, title, kind: kindOf(meta?.data?.format), essays }
 }
 
+export interface Site { name: string; description: string }
+let siteCache: Promise<Site> | null = null
+/** Site name and description as set in WriteFreely (site_name / site_description), via its NodeInfo endpoint. */
+export function getSite(): Promise<Site> {
+  siteCache ??= getJson('nodeinfo')
+    .then(j => ({ name: String(j.metadata?.nodeName ?? ''), description: String(j.metadata?.nodeDescription ?? '') }))
+    .catch(e => { console.warn('Could not read site info:', e.message); return { name: '', description: '' } })
+  return siteCache
+}
+
 export function getPublications(): Promise<Publication[]> {
   cache ??= Promise.all(ALIASES.map(loadPublication)).then(p => (loaded = p))
   return cache

@@ -1,7 +1,7 @@
 # ADR-004: Use MySQL 8 on Aiven as the production database
 
 ## Status
-Accepted
+Superseded by ADR-007 (TiDB Cloud replaces Aiven). Kept for history.
 
 ## Date
 2026-10-30 (recorded retroactively)

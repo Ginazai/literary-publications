@@ -1,6 +1,6 @@
 # Literary publication
 
-A personal publication for essays. [WriteFreely](https://writefreely.org/) is the CMS (database: MySQL on Aiven); a React + Vite site reads the published posts and presents each essay as a paged book, with archive, search, light and dark themes.
+A personal publication for essays. [WriteFreely](https://writefreely.org/) is the CMS (database: TiDB Cloud); a React + Vite site reads the published posts and presents each essay as a paged book, with archive, search, light and dark themes.
 
 ## Documentation
 | | |
@@ -9,7 +9,7 @@ A personal publication for essays. [WriteFreely](https://writefreely.org/) is th
 | `docs/decisions/` | Architecture decision records (ADR-001 to ADR-006) |
 | `docs/technology-decision.md` | Why this stack, what was left out, and what changed from the original plan |
 | `docs/ci-cd.md` | CI checks, the verified deploy pipeline on Render, one-time setup, rollback |
-| `docs/setup-writefreely.md` | Running WriteFreely: local trial, Aiven MySQL, Render, self-hosting |
+| `docs/setup-writefreely.md` | Running WriteFreely: local trial, TiDB Cloud, Render, self-hosting |
 | `docs/design-system.md` | Tokens, type, components |
 | `tasks/` | Plan, risks and task list |
 

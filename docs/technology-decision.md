@@ -18,14 +18,14 @@ A personal literary publication for essays and longer-form writing, not academic
 | Layer | Choice | Notes |
 |---|---|---|
 | CMS and backend | WriteFreely (Go) | ADR-001. v0.17.2 is pinned in `ops/render/Dockerfile` |
-| Database | MySQL 8 on Aiven | ADR-004 |
+| Database | TiDB Cloud (MySQL-compatible) | ADR-007 |
 | Frontend | React 18 + Vite + TypeScript | Static build; no server-side rendering |
 | Styling | Plain CSS in `styles.css` | Tokens in `docs/design-system.md` |
 | Page turn | Custom CSS | ADR-003. StPageFlip was tried and removed |
 | Search | MiniSearch in the browser | WriteFreely has no post search |
 | Subscription | RSS/Atom from WriteFreely | Email: see below |
 | Reverse proxy | Caddy (self-hosted) | `ops/Caddyfile` |
-| Trial hosting | Render + Aiven | `render.yaml` |
+| Trial hosting | Render + TiDB Cloud | `render.yaml` |
 | Source control | Git + GitHub | |
 
 ## Why React with Vite, not Next.js
@@ -48,16 +48,16 @@ Email is a separate matter. Since v0.15, WriteFreely itself can offer email subs
 
 ## Hosting and cost
 
-Software is free/open-source: WriteFreely, Go, React, Vite, TypeScript, MySQL, Caddy, Git. Infrastructure is the real cost. "$0 software" is achievable; "$0 hosting indefinitely" depends on providers' free-tier terms, which change. The design stays portable between hosts. Facts about the two free tiers in use (checked 2026-10-30 against Aiven's and Render's documentation):
+Software is free/open-source: WriteFreely, Go, React, Vite, TypeScript, MySQL, Caddy, Git. Infrastructure is the real cost. "$0 software" is achievable; "$0 hosting indefinitely" depends on providers' free-tier terms, which change. The design stays portable between hosts. Facts about the two free tiers in use (TiDB Cloud checked 2026-11-23, Render 2026-10-30):
 
-- **Aiven free MySQL**: single node, 1 CPU / 1 GB RAM / 1 GB disk; may be powered off after inactivity (with notice) and Aiven may change region or configuration. The Developer tier is not auto-powered-off.
+- **TiDB Cloud Starter (free)**: 5 GiB row storage and 50 million Request Units a month per instance; at the quota new connections are refused until the month resets.
 - **Render free web service**: spins down after 15 minutes without traffic and takes about a minute to start again; the filesystem is ephemeral and there are no persistent disks or shell access. Free static sites are fine for the reader.
 
 Free app hosts that sleep or lack a disk are a poor fit for WriteFreely in production. For a real launch use a paid host (or a small VPS with Caddy) and a non-powering-off database tier.
 
 ## Backups
 
-Back up the database separately from Git: a regular logical dump, an occasional full backup, and a copy stored off the server. Check what the chosen Aiven plan already includes. Git holds code only, never production dumps. Also back up WriteFreely's `config.ini` and `keys/`.
+Back up the database separately from Git: a regular logical dump, an occasional full backup, and a copy stored off the server. Check what the chosen TiDB Cloud plan already includes. Git holds code only, never production dumps. Also back up WriteFreely's `config.ini` and `keys/`.
 
 ## Development practice
 

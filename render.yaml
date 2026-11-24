@@ -18,15 +18,13 @@ services:
       - key: PUBLIC_URL
         sync: false       # e.g. https://writefreely-xxxx.onrender.com (set after first deploy)
       - key: DB_HOST
-        sync: false
+        sync: false       # TiDB Cloud: gateway01.<region>.prod.aws.tidbcloud.com (Connect dialog)
       - key: DB_PORT
-        sync: false
+        sync: false       # 4000
       - key: DB_USER
-        sync: false
+        sync: false       # TiDB Cloud usernames carry a prefix: <prefix>.root
       - key: DB_PASSWORD
         sync: false
-      - key: AIVEN_CA_CERT
-        sync: false       # paste the full contents of Aiven's CA certificate (ca.pem)
       - key: DB_NAME
         value: writefreely
       - key: ADMIN_USER

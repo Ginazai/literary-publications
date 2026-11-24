@@ -6,6 +6,7 @@
 # It checks what frontend/src/lib/writefreely.ts depends on, verified against v0.17.2:
 #   GET /api/collections/{alias}/posts?page=n  -> JSON {data:{posts:[{slug,title,created,tags,body}]}}
 #   an empty `posts` array past the last page (the client's loop stops on it)
+#   GET /api/nodeinfo -> metadata.nodeName: the site name the reader shows (WriteFreely's site_name)
 #   Access-Control-Allow-Origin on API responses (the Render reader calls WriteFreely cross-origin)
 #
 #   WF_URL         required  e.g. https://writefreely.onrender.com   (no trailing slash needed)
@@ -60,6 +61,15 @@ else
   [[ -n "$live" ]] || fail "build marker has an unexpected format"
   pass "build marker present (${live:0:7})"
 fi
+
+fetch nodeinfo /api/nodeinfo -H 'Accept: application/json' ${ORIGIN:+-H "Origin: $ORIGIN"}
+[[ "$STATUS" == 200 ]] || fail "GET /api/nodeinfo returned '$STATUS' (the reader reads the site name from it)"
+json_check "$TMP/nodeinfo.body" "isinstance(d['metadata']['nodeName'], str) and d['metadata']['nodeName']" || fail "/api/nodeinfo has no metadata.nodeName (set site_name; entrypoint.sh uses SITE_NAME)"
+if [[ -n "$ORIGIN" ]]; then
+  acao=$(grep -i '^access-control-allow-origin:' "$TMP/nodeinfo.head" | head -1 | cut -d: -f2- | tr -d ' \r')
+  [[ "$acao" == "*" || "$acao" == "$ORIGIN" ]] || fail "CORS: /api/nodeinfo Access-Control-Allow-Origin is '${acao:-missing}' for origin $ORIGIN"
+fi
+pass "site info available at /api/nodeinfo"
 
 if [[ -z "$WF_ALIASES" ]]; then
   echo "::notice title=WriteFreely API::WF_ALIASES is empty, so the collection checks were skipped."

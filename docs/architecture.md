@@ -10,13 +10,13 @@ Browser ── React reader (static files) ──┐
 Author ─── WriteFreely admin (Go) ◄──────┘
                   │
                   ▼  MySQL over TLS
-             Aiven MySQL 8
+            TiDB Cloud (MySQL-compatible)
 ```
 
 | Part | Where | Role |
 |---|---|---|
 | WriteFreely | `ops/` (config, Docker, Caddy) | CMS: writing, drafts, publishing, accounts, RSS feeds |
-| Aiven MySQL 8 | external | All content and accounts |
+| TiDB Cloud | external | All content and accounts |
 | Reader | `frontend/` | Public site: archive, search, essay reader. Static files only; no server of its own |
 | Caddy (self-hosted) or Render | `ops/Caddyfile`, `render.yaml` | Serves the reader and exposes WriteFreely |
 
@@ -25,6 +25,7 @@ Author ─── WriteFreely admin (Go) ◄──────┘
 One WriteFreely post is one essay. One public WriteFreely collection is one publication (ADR-005). The reader never writes to WriteFreely.
 
 `frontend/src/lib/writefreely.ts` calls:
+- `GET {BASE}/nodeinfo` for the site name and description shown in the masthead, footer and page titles (WriteFreely's `site_name` and `site_description`).
 - `GET {BASE}/collections/{alias}` for the publication title and format (falls back to the alias and "Blog" if this fails; the reason is logged to the browser console).
 - `GET {BASE}/collections/{alias}/posts?page=n` until a page comes back empty (at most 49 pages).
 

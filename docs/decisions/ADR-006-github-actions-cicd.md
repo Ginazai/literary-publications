@@ -5,11 +5,12 @@ Status: accepted
 ## Context
 Two Render services: a static site (the reader) and a Docker service wrapping a pinned WriteFreely
 binary. Render deploys from git on push by default. That skips tests, and Render keeps serving the
-old version when a deploy fails, so a "successful" trigger proves nothing. Aiven's free tier allows
-one MySQL service, so there is a single environment and no staging.
+old version when a deploy fails, so a "successful" trigger proves nothing. Aiven's free tier allowed
+one MySQL service, so there is a single environment and no staging. (Since ADR-007 the database is
+TiDB Cloud, whose free tier allows several instances, so staging is now affordable; not revisited here.)
 
 ## Decision
-- CI gates every change. A smoke test boots the real image against an Aiven-like TLS MySQL and checks
+- CI gates every change. A smoke test boots the real image against a TLS-enabled standalone TiDB and checks
   the API the reader uses, including a container restart (the normal state on Render's free plan).
 - Render auto-deploy is off. After CI passes on the default branch, CD calls each service's deploy
   hook with `&ref=<commit>`. The review is the pull request that was merged.
@@ -27,12 +28,12 @@ re-creating the existing service (a Render service cannot change runtime). Revis
 gains real build steps.
 
 ## Why no staging or promotion PR
-A second environment needs a second database, which the free Aiven tier does not allow. A promotion
+A second environment needs a second database, which the free Aiven tier did not allow. A promotion
 PR without staging would only repeat the review already done on the merged PR. Safety instead comes
 from CI, Render keeping the old version on a failed deploy, post-deploy verification and rollback.
 An optional GitHub Environment reviewer can add a manual approval step.
 
 ## Consequences
-- Production is the first place a change meets the real Aiven database and Render networking.
+- Production is the first place a change meets the real TiDB Cloud database and Render networking.
 - Rollback rebuilds from an old commit instead of re-pulling an image.
 - The build marker must be a `.js` file: WriteFreely answers unknown `*.txt` paths with HTTP 200.
