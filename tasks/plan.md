@@ -1,7 +1,7 @@
 # Implementation plan: Literary publication
 
 ## Overview
-WriteFreely (CMS, Aiven MySQL) + a React/Vite reader. Design read: personal literary essays, phone-first readers, quiet editorial language. The book is the one memorable element; everything else stays quiet.
+WriteFreely (CMS, TiDB Cloud) + a React/Vite reader. Design read: personal literary essays, phone-first readers, quiet editorial language. The book is the one memorable element; everything else stays quiet.
 
 How it works: `docs/architecture.md`. Why: `docs/decisions/`. Visual system: `docs/design-system.md`.
 
@@ -9,14 +9,15 @@ How it works: `docs/architecture.md`. Why: `docs/decisions/`. Visual system: `do
 - Pagination is pure and testable: `pack.ts` (no DOM) decides page boundaries; `paginate.ts` supplies a DOM measuring callback. Author breaks: `<!-- pagebreak -->`; automatic pagination fills the rest (ADR-002).
 - The page turn is custom CSS. StPageFlip was removed because it caused layout collapse, scroll jumps and an abrupt page vanish (ADR-003).
 - Multiple publications = multiple WriteFreely collections listed in `VITE_WF_ALIASES`; URLs are `/:alias/:slug`. Needs WriteFreely multi-user mode (`single_user = false`) (ADR-005).
-- The reader reaches WriteFreely through a same-origin `/wf` proxy (Caddy in production, Vite in dev), or directly through `VITE_WF_BASE` (Render trial).
+- The reader reaches WriteFreely through a same-origin `/wf` proxy (Vite in dev) (Caddy rule, or read-only Render rewrites on the trial; ADR-008).
 
 ## Risks
 | Risk | Impact | Status / mitigation |
 |---|---|---|
 | WriteFreely field names and API shape unverified against a live instance | Med | Open. Task T1c |
 | Cross-origin calls from the Render reader to WriteFreely unverified | Med | Open. Check with T1c; the Caddy setup avoids the question |
-| Aiven free plan may power off when idle | High | Use the Developer tier or above for production; monitor (ADR-004) |
+| TiDB free-tier quota (50M RUs/month) or idle behaviour takes the DB away | Medium | Set a spending limit for production; monitor (ADR-007) |
+| WriteFreely is not officially tested on TiDB | Medium | CI smoke test runs db init/migrate on TiDB; confirm on the real instance |
 | Render free web service sleeps (about a minute to wake) and has no disk | High | Acceptable for a trial only; paid service or VPS for launch |
 | API client stops after 49 pages (about 490 essays per publication) | Low | Raise the limit or stop on a short page if the archive grows |
 | One failing collection makes the whole archive error | Low | Load publications independently if it becomes a problem |

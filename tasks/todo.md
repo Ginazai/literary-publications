@@ -9,11 +9,11 @@
 - [x] T4 Repaginate when width changes (rotation), keep reading position (S)
 - [x] T7 Replace StPageFlip with a custom CSS page turn (ADR-003) (M)
 - [x] T8 Documentation refresh: architecture doc, ADRs, setup and design docs brought in line with the code (S)
-- [ ] T1c Live check: run WriteFreely + Aiven, confirm `/api/collections/{alias}/posts` shape, fix `writefreely.ts` if needed; also check cross-origin access for the Render setup (S)
+- [ ] T1c Live check: run WriteFreely + TiDB Cloud, confirm `/api/collections/{alias}/posts` shape, fix `writefreely.ts` if needed; also check cross-origin access for the Render setup (S)
 - [ ] Checkpoint A: `npm install && npm run build` passes; archive lists real essays; one essay flips on a phone
 - [ ] T9 Remove the unused `frontend/src/page-flip.d.ts` (XS)
 - [ ] T10 Replace the placeholder site name `test` in `config.ts`, `index.html`, `render.yaml` (XS)
 - [ ] T2 About + Subscribe pages (RSS link from collection `/feed/`; decide on WriteFreely email subscriptions) (S)
 - [ ] T5 Accessibility pass (M). Already in place: skip link, `aria-live` page counter, labelled progress bar and controls, keyboard arrows, reduced-motion handling, plain-text view. Remaining: check focus order, text size control, screen reader behaviour of the paged view
 - [ ] Checkpoint B: keyboard-only and screen reader walkthrough
-- [ ] T6 Deploy: Caddy, backups, monitoring; paid Render service or VPS and a non-powering-off Aiven tier (M)
+- [ ] T6 Deploy: Caddy, backups, monitoring; paid Render service or VPS and a TiDB Cloud spending limit (M)

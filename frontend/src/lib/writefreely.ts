@@ -13,7 +13,7 @@ async function getJson(path: string) {
   // WriteFreely answers the blog-info request with a redirect to the HTML page unless Accept is exactly this.
   const res = await fetch(`${BASE}/${path}`, { headers: { Accept: 'application/json' } })
   if (!res.ok) throw new Error(`WriteFreely returned ${res.status} for ${path}`)
-  if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error('Got a web page instead of JSON. Check that VITE_WF_BASE points to your WriteFreely /api URL, then rebuild.')
+  if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error('Got a web page instead of JSON. Check that the /wf proxy points to your WriteFreely /api.')
   return res.json()
 }
 
@@ -28,6 +28,16 @@ async function loadPublication(alias: string): Promise<Publication> {
     essays.push(...posts.map((p: any) => toEssay(p, alias)))
   }
   return { alias, title, kind: kindOf(meta?.data?.format), essays }
+}
+
+export interface Site { name: string; description: string }
+let siteCache: Promise<Site> | null = null
+/** Site name and description as set in WriteFreely (site_name / site_description), via its NodeInfo endpoint. */
+export function getSite(): Promise<Site> {
+  siteCache ??= getJson('nodeinfo')
+    .then(j => ({ name: String(j.metadata?.nodeName ?? ''), description: String(j.metadata?.nodeDescription ?? '') }))
+    .catch(e => { console.warn('Could not read site info:', e.message); return { name: '', description: '' } })
+  return siteCache
 }
 
 export function getPublications(): Promise<Publication[]> {

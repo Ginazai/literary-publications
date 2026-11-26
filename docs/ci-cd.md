@@ -15,7 +15,7 @@ PR ──► CI ──► you review + merge ──► CI ──► CD: deploy �
 | Reader | `tsc`, the unit tests, a production build, then the built site is served and checked (SPA shell, deep-link fallback, bundle points at the configured WriteFreely) |
 | Dependency vulnerabilities | `npm audit --omit=dev --audit-level=high` |
 | Pipeline | actionlint, shellcheck, and `render.yaml` invariants (auto-deploy off, no committed secrets) |
-| WriteFreely image | Builds `ops/render/Dockerfile`, boots it against a throwaway MySQL that mimics Aiven (private-CA TLS, `REQUIRE SSL` user, latin1 DB), seeds a blog, checks the API contract the reader depends on and CORS, then **restarts the container** and checks again. Also checks the entrypoint refuses to start without `DB_HOST` |
+| WriteFreely image | Builds `ops/render/Dockerfile`, boots it against a throwaway standalone TiDB (private-CA TLS, `REQUIRE SSL` user, utf8 DB), seeds a blog, checks the API contract the reader depends on (posts, `/api/nodeinfo` site name) and CORS, then **restarts the container** and checks again. Also checks the entrypoint refuses to start without `DB_HOST` |
 | CI gate | The single check to require in branch protection |
 
 CI also runs weekly, so an advisory or a vanished upstream asset shows up as a red run, not a surprise.
@@ -36,7 +36,7 @@ version on a failed deploy, the post-deploy checks, and one-click rollback.
 
 ## One-time setup
 
-1. **Render services.** `render.yaml` defines `writefreely` and `reader`, both with **auto-deploy off** (the pipeline deploys them). Sync the Blueprint and fill in **every** `sync: false` value: `DB_HOST`, `DB_PORT` (Aiven's is not 3306), `DB_USER`, `DB_PASSWORD`, `AIVEN_CA_CERT`, `ADMIN_USER`, `ADMIN_PASSWORD`, then `PUBLIC_URL` and `VITE_WF_BASE` (`<writefreely url>/api`) after the first deploy. WriteFreely now refuses to start, with a clear message, if the database settings are missing.
+1. **Render services.** `render.yaml` defines `writefreely` and `reader`, both with **auto-deploy off** (the pipeline deploys them). Sync the Blueprint and fill in **every** `sync: false` value: `DB_HOST`, `DB_PORT` (TiDB Cloud's is 4000), `DB_USER` (with its prefix), `DB_PASSWORD`, `ADMIN_USER`, `ADMIN_PASSWORD`, then `PUBLIC_URL` after the first deploy, and edit the WriteFreely host in the reader's `routes` in `render.yaml`. WriteFreely now refuses to start, with a clear message, if the database settings are missing.
    - Log in to WriteFreely and create a blog whose alias matches `VITE_WF_ALIASES` (`test`). The post-deploy check requires it.
 2. **Deploy hooks.** For each service: Render → Settings → *Deploy Hook*, copy the URL.
 3. **GitHub Environment** `production` (Settings → Environments):
@@ -64,7 +64,7 @@ First run: nothing is live yet, so the first CD deploys both services.
 | "did not start serving … within 15 min" | The Render deploy failed (the old version is still up). Read its log in Render |
 | Hook returns 404 | Render does not know the commit: the service tracks another branch, or the hook URL belongs to another service |
 | `[test] collection returned '404'` | Create a blog with that alias in WriteFreely |
-| "bundle does not contain …/api" | `VITE_WF_BASE` was empty or wrong when the reader was built. Set it, then redeploy |
+| `/wf/nodeinfo (same-origin proxy) did not return the site info` | The WriteFreely host in the reader's `routes` (`render.yaml`) is wrong or WriteFreely is down |
 | `/version.json` never matches | The reader's `buildCommand` lost its `version.json` step (CI's blueprint check catches this) |
 
 ## Limits
@@ -72,4 +72,4 @@ First run: nothing is live yet, so the first CD deploys both services.
 - The build markers publish the deployed commit SHA to anyone who asks. Fine for a public repo; weigh it for a private one.
 - Rollback rebuilds the WriteFreely image, so it depends on GitHub and the Debian mirrors being reachable. Render's dashboard *Rollback* is the instant alternative.
 - Upgrading WriteFreely: bump `WF_VERSION` in the Dockerfile; CI smoke-tests the new version before it can reach production.
-- Want a staging environment later? It needs its own database (Aiven's free tier allows one MySQL service); the pipeline was designed so it can be added back.
+- Want a staging environment later? It needs its own database (TiDB Cloud's free tier allows several Starter instances, so a second database is cheap); the pipeline was designed so it can be added back.

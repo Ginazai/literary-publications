@@ -33,7 +33,6 @@ jobs:
     env:
       # Dummy build-time config, so the build is exercised the way Render builds it.
       VITE_WF_ALIASES: ci
-      VITE_WF_BASE: https://writefreely.invalid/api
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -70,7 +69,7 @@ jobs:
             cat "$RUNNER_TEMP/preview.log"
             exit 1
           fi
-          READER_URL=http://127.0.0.1:4173 WF_URL=https://writefreely.invalid EXPECT_COMMIT="$GITHUB_SHA" \
+          READER_URL=http://127.0.0.1:4173 EXPECT_COMMIT="$GITHUB_SHA" \
             bash ../scripts/ci/assert-reader.sh
 
   # ───────────────────────── Dependency audit ────────────────────────

@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Link, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { ArrowRight } from '@phosphor-icons/react'
 import MiniSearch from 'minisearch'
-import { SITE } from './config'
+import { useSite } from './lib/site'
 import { Essay as EssayData, Publication, getPublications, loadedPublications, renderBody } from './lib/writefreely'
 import { excerpt } from './lib/excerpt'
 import { longDate, minutes } from './lib/format'
@@ -63,7 +63,8 @@ function Skeleton() {
 /** One square cover per blog; title and category sit below it. */
 function Catalog() {
   const { pubs, error } = usePubs()
-  useTitle(`Catalog · ${SITE.name}`)
+  const site = useSite()
+  useTitle(`Catalog · ${site.name}`)
   if (error) return <Notice title="The catalog could not be loaded">{error}</Notice>
   if (!pubs) return <ul className="tiles skeleton" role="status" aria-label="Loading blogs">{[0, 1, 2].map(i => <li key={i}><span className="bar bar--tile" /></li>)}</ul>
   return (
@@ -88,7 +89,8 @@ function Archive() {
   const { pubs, error } = usePubs()
   const [q, setQ] = useState('')
   const { alias = '' } = useParams()
-  useTitle(SITE.name)
+  const site = useSite()
+  useTitle(site.name)
   const scoped = useMemo(() => (pubs ?? []).filter(p => !alias || p.alias === alias), [pubs, alias])
   const all = useMemo(() => scoped.flatMap(p => p.essays), [scoped])
   const latest = useMemo(() => [...all].sort((a, b) => +new Date(b.created) - +new Date(a.created))[0], [all])
@@ -145,7 +147,8 @@ function EssayPage() {
   const [plain, setPlain] = useState(false)
   const blog = pubs?.find(p => p.alias === alias)
   const essay = blog?.essays.find(e => e.slug === slug)
-  useTitle(essay ? `${essay.title} · ${SITE.name}` : SITE.name)
+  const site = useSite()
+  useTitle(essay ? `${essay.title} · ${site.name}` : site.name)
   if (error) return <Notice title="The post could not be loaded" back>{error}</Notice>
   if (!pubs) return <div className="cover"><div className="book-skeleton" role="status" aria-label="Loading post" /></div>
   if (!essay) return <Notice title="Post not found" back>This link may be old. Go back to the full list.</Notice>

@@ -3,15 +3,13 @@
 # `vite preview`) and by render-deploy.sh (against the Render static site).
 #
 #   READER_URL     required  e.g. https://reader.onrender.com
-#   WF_URL         optional  when set, the JS bundle must embed "<WF_URL>/api" (VITE_WF_BASE).
-#                            Catches a reader built without VITE_WF_BASE, which silently calls
-#                            the non-existent /wf proxy on Render.
+#   CHECK_PROXY    optional  "yes" on the deployed site: checks the same-origin /wf proxy (read-only
+#                            allowlist) and the security headers. WF_ALIASES picks a blog to read.
 #   EXPECT_COMMIT  optional  /version.json must report this commit
 set -euo pipefail
 
 : "${READER_URL:?READER_URL is required}"
 READER_URL=${READER_URL%/}
-WF_URL=${WF_URL:-}
 EXPECT_COMMIT=${EXPECT_COMMIT:-}
 
 TMP=$(mktemp -d)
@@ -35,13 +33,31 @@ if [[ "$STATUS" != 200 ]] || ! grep -q 'id="root"' "$TMP/deep"; then
 fi
 pass "deep links fall back to the SPA shell"
 
-if [[ -n "$WF_URL" ]]; then
-  bundle=$(grep -o 'src="/assets/[^"]*\.js"' "$TMP/index" | head -1 | sed 's/^src="//; s/"$//')
-  [[ -n "$bundle" ]] || fail "could not find the JS bundle in index.html"
-  get js "$bundle"
-  [[ "$STATUS" == 200 ]] || fail "bundle $bundle returned '$STATUS'"
-  grep -qF "${WF_URL%/}/api" "$TMP/js" || fail "the bundle does not contain ${WF_URL%/}/api: VITE_WF_BASE was missing or wrong at build time"
-  pass "bundle is built against ${WF_URL%/}/api"
+if [[ "${CHECK_PROXY:-}" == yes ]]; then   # deployed site only; `vite preview` has no proxy or headers
+  is_json() { python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$TMP/$1" 2>/dev/null; }
+  get nodeinfo /wf/nodeinfo
+  if [[ "$STATUS" != 200 ]] || ! python3 -c "import json,sys; assert json.load(open(sys.argv[1]))['metadata']['nodeName']" "$TMP/nodeinfo" 2>/dev/null; then
+    fail "/wf/nodeinfo (same-origin proxy) did not return the site info: check the WriteFreely host in render.yaml routes"
+  fi
+  pass "same-origin proxy serves the site info"
+  alias1=${WF_ALIASES%%,*}; alias1=${alias1//[[:space:]]/}
+  if [[ -n "$alias1" ]]; then
+    get posts "/wf/collections/$alias1/posts?page=1"
+    if [[ "$STATUS" != 200 ]] || ! python3 -c "import json,sys; assert isinstance(json.load(open(sys.argv[1]))['data']['posts'], list)" "$TMP/posts" 2>/dev/null; then
+      fail "/wf/collections/$alias1/posts?page=1 did not return posts through the proxy (is the query string passed on?)"
+    fi
+    pass "same-origin proxy serves posts, with the query string"
+  fi
+  # Least privilege: anything outside the allowlist must NOT reach WriteFreely (it falls through to the SPA).
+  get login /wf/auth/login
+  ! is_json login || fail "/wf/auth/login returned JSON: the proxy exposes more of WriteFreely than the read-only allowlist"
+  pass "write/login endpoints are not proxied"
+  hdrs=$(curl -sS --max-time 60 -D - -o /dev/null "$READER_URL/")
+  for h in content-security-policy x-content-type-options x-frame-options referrer-policy; do
+    grep -qi "^$h:" <<<"$hdrs" || fail "response header $h is missing"
+  done
+  grep -i '^content-security-policy:' <<<"$hdrs" | grep -q "connect-src 'self'" || fail "CSP lacks connect-src 'self'"
+  pass "security headers present"
 fi
 
 get version "/version.json?t=$(date +%s)"
