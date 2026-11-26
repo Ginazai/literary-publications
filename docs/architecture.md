@@ -31,7 +31,7 @@ One WriteFreely post is one essay. One public WriteFreely collection is one publ
 
 It keeps `slug`, `title` ("Untitled" when empty), `created`, `tags` and the Markdown `body`. WriteFreely sends no `slug` for untitled posts, so those use their `id` as the slug (`lib/post.ts`). The blog-info request must send `Accept: application/json`; without it WriteFreely redirects to the HTML page. Its `format` field (blog, novel, notebook) is the category shown in the catalog. The result is cached in memory for the life of the page; new posts appear after a reload.
 
-`BASE` is `VITE_WF_BASE` if set, otherwise `/wf`, a same-origin path that Vite (dev) or Caddy (production) forwards to WriteFreely's `/api`. These field names and the pagination shape have **not yet been confirmed against a live instance** (task T1c).
+`BASE` is `/wf`, a same-origin path that Vite (dev), Caddy or Render rewrites (production) forward to WriteFreely's `/api` (`VITE_WF_BASE` still exists as an override but must not be used in production: the CSP blocks cross-origin calls). These field names and the pagination shape have **not yet been confirmed against a live instance** (task T1c).
 
 ## Rendering and pagination
 
@@ -91,7 +91,7 @@ docs/                   this documentation
 | Setting | Where | Notes |
 |---|---|---|
 | `VITE_WF_ALIASES` | `frontend/.env`, Render `reader` service | Comma-separated aliases of every blog to show (WriteFreely has no public API to list them). Build-time |
-| `VITE_WF_BASE` | same | Full WriteFreely API URL. Leave unset to use the `/wf` proxy. Build-time |
+| `VITE_WF_BASE` | same | Override of the API base. Leave unset: the reader uses the same-origin `/wf` proxy. Build-time |
 | `VITE_WF_DEV_TARGET` | `frontend/.env` | Where Vite's dev proxy sends `/wf` (default `http://localhost:8080`) |
 | Site name and author | `frontend/src/config.ts` | Placeholder name `test`. Also appears in `frontend/index.html` (`<title>`) and, for the WriteFreely side, `SITE_NAME` / `AUTHOR_NAME` in `render.yaml` |
 | WriteFreely settings | `ops/config.example.ini`, or env vars on Render | See `docs/setup-writefreely.md` |
@@ -102,7 +102,7 @@ Renaming the site means changing all of the places in the "Site name and author"
 
 **Self-hosted (target for production).** Caddy serves `frontend/dist` on the main domain and proxies `/wf/*` to WriteFreely's `/api/*` on a separate subdomain (WriteFreely expects to own its site root). The reader is same-origin, so no CORS is involved. Persist WriteFreely's `config.ini` and `keys/` directory; losing `keys/` logs everyone out.
 
-**Render (trial).** Two services from `render.yaml`: a Docker web service for WriteFreely (rebuilds `config.ini` from env vars on each start) and a static site for the reader, which calls WriteFreely directly through `VITE_WF_BASE`. This depends on WriteFreely allowing cross-origin requests on its public API, which is not yet verified. The free web plan sleeps and has no disk (see `docs/setup-writefreely.md`, section C).
+**Render (trial).** Two services from `render.yaml`: a Docker web service for WriteFreely (rebuilds `config.ini` from env vars on each start) and a static site for the reader. The reader is same-origin: Render rewrites `/wf/nodeinfo` and `/wf/collections/*` (read-only, allowlisted in `render.yaml` and enforced by CI) to WriteFreely, and a CSP (`connect-src 'self'`) plus security headers are set on the site (ADR-008). The free web plan sleeps and has no disk (see `docs/setup-writefreely.md`, section C).
 
 ## Tests and checks
 

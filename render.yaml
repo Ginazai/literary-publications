@@ -48,9 +48,32 @@ services:
         value: "22"       # matches CI; the unit tests need Node >= 22.6
       - key: VITE_WF_ALIASES
         value: test
-      - key: VITE_WF_BASE
-        sync: false       # e.g. https://writefreely-xxxx.onrender.com/api
+    # The browser only ever talks to this site (same origin): no CORS, and the CSP can say
+    # connect-src 'self'. Render proxies exactly two READ-ONLY paths to WriteFreely; every other
+    # /wf/... path (login, admin, writes) falls through to the SPA and never reaches WriteFreely.
+    # EDIT the host below to your WriteFreely service URL (Render dashboard). Rules apply top-down.
+    # scripts/ci/check-blueprint.py enforces this allowlist, https, and the CSP hash.
     routes:
+      - type: rewrite
+        source: /wf/nodeinfo
+        destination: https://writefreely-0ke4.onrender.com/api/nodeinfo
+
+      - type: rewrite
+        source: /wf/collections/*
+        destination: https://writefreely-0ke4.onrender.com/api/collections/*
       - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self' 'sha256-zNY7Ew7CDhcveSMxkAKAT/eEkVj7K1xVPk3iVQJEI+U='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: X-Frame-Options
+        value: DENY

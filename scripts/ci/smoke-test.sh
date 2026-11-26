@@ -122,7 +122,7 @@ curl -fsS -o /dev/null "${auth[@]}" -X POST "$BASE/api/collections/ci/posts" \
 echo "✓ seeded a collection and an essay"
 
 check() {
-  WF_URL="$BASE" WF_ALIASES=ci ORIGIN=https://reader.example.test EXPECT_COMMIT="$COMMIT" \
+  WF_URL="$BASE" WF_ALIASES=ci EXPECT_COMMIT="$COMMIT" \
     bash "$HERE/assert-writefreely.sh"
 }
 echo "--- first start"; check

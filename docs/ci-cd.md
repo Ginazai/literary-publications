@@ -36,7 +36,7 @@ version on a failed deploy, the post-deploy checks, and one-click rollback.
 
 ## One-time setup
 
-1. **Render services.** `render.yaml` defines `writefreely` and `reader`, both with **auto-deploy off** (the pipeline deploys them). Sync the Blueprint and fill in **every** `sync: false` value: `DB_HOST`, `DB_PORT` (TiDB Cloud's is 4000), `DB_USER` (with its prefix), `DB_PASSWORD`, `ADMIN_USER`, `ADMIN_PASSWORD`, then `PUBLIC_URL` and `VITE_WF_BASE` (`<writefreely url>/api`) after the first deploy. WriteFreely now refuses to start, with a clear message, if the database settings are missing.
+1. **Render services.** `render.yaml` defines `writefreely` and `reader`, both with **auto-deploy off** (the pipeline deploys them). Sync the Blueprint and fill in **every** `sync: false` value: `DB_HOST`, `DB_PORT` (TiDB Cloud's is 4000), `DB_USER` (with its prefix), `DB_PASSWORD`, `ADMIN_USER`, `ADMIN_PASSWORD`, then `PUBLIC_URL` after the first deploy, and edit the WriteFreely host in the reader's `routes` in `render.yaml`. WriteFreely now refuses to start, with a clear message, if the database settings are missing.
    - Log in to WriteFreely and create a blog whose alias matches `VITE_WF_ALIASES` (`test`). The post-deploy check requires it.
 2. **Deploy hooks.** For each service: Render → Settings → *Deploy Hook*, copy the URL.
 3. **GitHub Environment** `production` (Settings → Environments):
@@ -64,7 +64,7 @@ First run: nothing is live yet, so the first CD deploys both services.
 | "did not start serving … within 15 min" | The Render deploy failed (the old version is still up). Read its log in Render |
 | Hook returns 404 | Render does not know the commit: the service tracks another branch, or the hook URL belongs to another service |
 | `[test] collection returned '404'` | Create a blog with that alias in WriteFreely |
-| "bundle does not contain …/api" | `VITE_WF_BASE` was empty or wrong when the reader was built. Set it, then redeploy |
+| `/wf/nodeinfo (same-origin proxy) did not return the site info` | The WriteFreely host in the reader's `routes` (`render.yaml`) is wrong or WriteFreely is down |
 | `/version.json` never matches | The reader's `buildCommand` lost its `version.json` step (CI's blueprint check catches this) |
 
 ## Limits

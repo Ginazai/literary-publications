@@ -13,7 +13,7 @@ async function getJson(path: string) {
   // WriteFreely answers the blog-info request with a redirect to the HTML page unless Accept is exactly this.
   const res = await fetch(`${BASE}/${path}`, { headers: { Accept: 'application/json' } })
   if (!res.ok) throw new Error(`WriteFreely returned ${res.status} for ${path}`)
-  if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error('Got a web page instead of JSON. Check that VITE_WF_BASE points to your WriteFreely /api URL, then rebuild.')
+  if (!(res.headers.get('content-type') ?? '').includes('json')) throw new Error('Got a web page instead of JSON. Check that the /wf proxy points to your WriteFreely /api.')
   return res.json()
 }
 

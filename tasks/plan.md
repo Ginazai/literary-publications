@@ -9,7 +9,7 @@ How it works: `docs/architecture.md`. Why: `docs/decisions/`. Visual system: `do
 - Pagination is pure and testable: `pack.ts` (no DOM) decides page boundaries; `paginate.ts` supplies a DOM measuring callback. Author breaks: `<!-- pagebreak -->`; automatic pagination fills the rest (ADR-002).
 - The page turn is custom CSS. StPageFlip was removed because it caused layout collapse, scroll jumps and an abrupt page vanish (ADR-003).
 - Multiple publications = multiple WriteFreely collections listed in `VITE_WF_ALIASES`; URLs are `/:alias/:slug`. Needs WriteFreely multi-user mode (`single_user = false`) (ADR-005).
-- The reader reaches WriteFreely through a same-origin `/wf` proxy (Caddy in production, Vite in dev), or directly through `VITE_WF_BASE` (Render trial).
+- The reader reaches WriteFreely through a same-origin `/wf` proxy (Vite in dev) (Caddy rule, or read-only Render rewrites on the trial; ADR-008).
 
 ## Risks
 | Risk | Impact | Status / mitigation |

@@ -7,18 +7,15 @@
 #   GET /api/collections/{alias}/posts?page=n  -> JSON {data:{posts:[{slug,title,created,tags,body}]}}
 #   an empty `posts` array past the last page (the client's loop stops on it)
 #   GET /api/nodeinfo -> metadata.nodeName: the site name the reader shows (WriteFreely's site_name)
-#   Access-Control-Allow-Origin on API responses (the Render reader calls WriteFreely cross-origin)
 #
 #   WF_URL         required  e.g. https://writefreely.onrender.com   (no trailing slash needed)
 #   WF_ALIASES     optional  comma-separated collection aliases to check (VITE_WF_ALIASES)
-#   ORIGIN         optional  reader origin; when set, the CORS header is checked
 #   EXPECT_COMMIT  optional  the build marker (/js/build-info.js) must match this commit
 set -euo pipefail
 
 : "${WF_URL:?WF_URL is required}"
 WF_URL=${WF_URL%/}
 WF_ALIASES=${WF_ALIASES:-}
-ORIGIN=${ORIGIN:-}
 EXPECT_COMMIT=${EXPECT_COMMIT:-}
 
 TMP=$(mktemp -d)
@@ -62,16 +59,9 @@ else
   pass "build marker present (${live:0:7})"
 fi
 
-fetch nodeinfo /api/nodeinfo -H 'Accept: application/json' ${ORIGIN:+-H "Origin: $ORIGIN"}
+fetch nodeinfo /api/nodeinfo -H 'Accept: application/json'
 [[ "$STATUS" == 200 ]] || fail "GET /api/nodeinfo returned '$STATUS' (the reader reads the site name from it)"
 json_check "$TMP/nodeinfo.body" "isinstance(d['metadata']['nodeName'], str) and d['metadata']['nodeName']" || fail "/api/nodeinfo has no metadata.nodeName (set site_name; entrypoint.sh uses SITE_NAME)"
-if [[ -n "$ORIGIN" ]]; then
-  acao=$(grep -i '^access-control-allow-origin:' "$TMP/nodeinfo.head" | head -1 | cut -d: -f2- | tr -d ' \r' || true)   # grep exits 1 when the header is absent; under pipefail that would abort silently
-  # A warning, not a failure: the reader copes without the site name (it shows empty), but a
-  # cross-origin reader (Render's two services) then cannot read it. Same-origin /wf (Caddy) is fine.
-  if [[ "$acao" == "*" || "$acao" == "$ORIGIN" ]]; then pass "CORS allows $ORIGIN on /api/nodeinfo"
-  else echo "::warning title=nodeinfo CORS::/api/nodeinfo Access-Control-Allow-Origin is '${acao:-missing}' for origin $ORIGIN; a cross-origin reader will not get the site name"; fi
-fi
 pass "site info available at /api/nodeinfo"
 
 if [[ -z "$WF_ALIASES" ]]; then
@@ -91,7 +81,7 @@ for alias in "${aliases[@]}"; do
   json_check "$TMP/meta.body" "d['data']['alias'] == '$alias'" || fail "[$alias] collection JSON has an unexpected shape"
   pass "[$alias] collection exists"
 
-  fetch posts "/api/collections/$alias/posts?page=1" ${ORIGIN:+-H "Origin: $ORIGIN"}
+  fetch posts "/api/collections/$alias/posts?page=1"
   [[ "$STATUS" == 200 ]] || fail "[$alias] posts page 1 returned '$STATUS'"
   grep -qi '^content-type:.*json' "$TMP/posts.head" || fail "[$alias] posts response is not JSON (the reader rejects non-JSON)"
   json_check "$TMP/posts.body" "isinstance(d['data']['posts'], list)" || fail "[$alias] data.posts is not a list"
@@ -106,11 +96,6 @@ for alias in "${aliases[@]}"; do
   fi
   pass "[$alias] pagination ends with an empty page"
 
-  if [[ -n "$ORIGIN" ]]; then
-    acao=$(grep -i '^access-control-allow-origin:' "$TMP/posts.head" | head -1 | cut -d: -f2- | tr -d ' \r' || true)   # grep exits 1 when the header is absent; under pipefail that would abort silently
-    [[ "$acao" == "*" || "$acao" == "$ORIGIN" ]] || fail "[$alias] CORS: Access-Control-Allow-Origin is '${acao:-missing}' for origin $ORIGIN"
-    pass "[$alias] CORS allows $ORIGIN"
-  fi
 done
 
 echo "All WriteFreely checks passed."

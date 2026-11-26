@@ -97,9 +97,9 @@ if [[ $deploy_reader == yes ]]; then trigger reader "$READER_HOOK"; else echo "=
 [[ $deploy_reader == yes ]] && wait_for reader live_reader
 
 echo "--- Post-deploy checks"
-WF_URL=$WF_URL WF_ALIASES=$WF_ALIASES ORIGIN=$READER_URL \
+WF_URL=$WF_URL WF_ALIASES=$WF_ALIASES \
   EXPECT_COMMIT=$([[ $deploy_wf == yes ]] && echo "$COMMIT" || true) bash "$HERE/assert-writefreely.sh"
-READER_URL=$READER_URL WF_URL=$WF_URL \
+READER_URL=$READER_URL CHECK_PROXY=yes WF_ALIASES=$WF_ALIASES \
   EXPECT_COMMIT=$([[ $deploy_reader == yes ]] && echo "$COMMIT" || true) bash "$HERE/assert-reader.sh"
 
 soak_result="skipped"
