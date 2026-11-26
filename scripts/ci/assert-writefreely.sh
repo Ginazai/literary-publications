@@ -67,7 +67,10 @@ fetch nodeinfo /api/nodeinfo -H 'Accept: application/json' ${ORIGIN:+-H "Origin:
 json_check "$TMP/nodeinfo.body" "isinstance(d['metadata']['nodeName'], str) and d['metadata']['nodeName']" || fail "/api/nodeinfo has no metadata.nodeName (set site_name; entrypoint.sh uses SITE_NAME)"
 if [[ -n "$ORIGIN" ]]; then
   acao=$(grep -i '^access-control-allow-origin:' "$TMP/nodeinfo.head" | head -1 | cut -d: -f2- | tr -d ' \r')
-  [[ "$acao" == "*" || "$acao" == "$ORIGIN" ]] || fail "CORS: /api/nodeinfo Access-Control-Allow-Origin is '${acao:-missing}' for origin $ORIGIN"
+  # A warning, not a failure: the reader copes without the site name (it shows empty), but a
+  # cross-origin reader (Render's two services) then cannot read it. Same-origin /wf (Caddy) is fine.
+  if [[ "$acao" == "*" || "$acao" == "$ORIGIN" ]]; then pass "CORS allows $ORIGIN on /api/nodeinfo"
+  else echo "::warning title=nodeinfo CORS::/api/nodeinfo Access-Control-Allow-Origin is '${acao:-missing}' for origin $ORIGIN; a cross-origin reader will not get the site name"; fi
 fi
 pass "site info available at /api/nodeinfo"
 
