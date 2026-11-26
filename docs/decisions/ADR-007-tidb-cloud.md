@@ -12,7 +12,7 @@ ADR-004 chose a managed MySQL on Aiven. Its free plan may be powered off after i
 ## Decision
 Use **TiDB Cloud Starter** as the production database. WriteFreely keeps `type = mysql` (the MySQL protocol and driver), with `tls = true`, port 4000, and a prefixed user name (`<prefix>.root`).
 
-What this removes compared with ADR-004: the CA certificate variable (Let's Encrypt is already trusted), the primary-key setting, and the latin1 database. The database is created `utf8mb4 / utf8mb4_general_ci`: TiDB's default collation is case-sensitive, and `general_ci` matches MySQL's behaviour.
+What this removes compared with ADR-004: the CA certificate variable (Let's Encrypt is already trusted), the primary-key setting, and the latin1 database. The database is created `utf8 / utf8_general_ci`, not utf8mb4: WriteFreely's migration V11 runs `MODIFY COLUMN ... utf8_bin`, which TiDB rejects on a utf8mb4 column (Error 8200, found by the smoke test). The upstream latin1 setup was not used because TiDB's rules for converting latin1 to utf8 were not verified.
 
 ## Alternatives Considered
 - **Stay on Aiven**: works, but the idle power-off and the private-CA step remain. Rejected.

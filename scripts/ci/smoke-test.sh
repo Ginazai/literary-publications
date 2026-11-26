@@ -5,7 +5,8 @@
 # changes the API, and a second start that fails (Render's free plan restarts the container often).
 #
 # TiDB runs standalone (in-memory unistore) with TLS and a user that REQUIRES SSL, the database
-# created as docs/setup-writefreely.md says. TiDB Cloud's certificate comes from a public CA;
+# created as docs/setup-writefreely.md says (utf8: WriteFreely's migration V11 does
+# MODIFY ... utf8_bin, which TiDB refuses on a utf8mb4 column). TiDB Cloud's certificate comes from a public CA;
 # here a private CA is used instead and passed as DB_CA_CERT, which also exercises that path.
 #
 #   WF_IMAGE           default literary-writefreely:ci
@@ -96,7 +97,7 @@ docker run -d --name "$DB" --network "$NET" -v "$CERTS:/certs:ro" "$TIDB_IMAGE" 
 mysql_root() { docker run --rm -i --network "$NET" "$MYSQL_IMAGE" mysql -h "$DB" -P 4000 -uroot "$@"; }
 wait_until "tidb" 60 "$DB" mysql_root -e 'SELECT 1'
 mysql_root --batch >/dev/null <<SQL
-CREATE DATABASE writefreely CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE DATABASE writefreely CHARACTER SET utf8 COLLATE utf8_general_ci;
 CREATE USER 'wf'@'%' IDENTIFIED BY '$DB_PW' REQUIRE SSL;
 GRANT ALL ON writefreely.* TO 'wf'@'%';
 SQL

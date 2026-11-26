@@ -15,7 +15,7 @@ PR ──► CI ──► you review + merge ──► CI ──► CD: deploy �
 | Reader | `tsc`, the unit tests, a production build, then the built site is served and checked (SPA shell, deep-link fallback, bundle points at the configured WriteFreely) |
 | Dependency vulnerabilities | `npm audit --omit=dev --audit-level=high` |
 | Pipeline | actionlint, shellcheck, and `render.yaml` invariants (auto-deploy off, no committed secrets) |
-| WriteFreely image | Builds `ops/render/Dockerfile`, boots it against a throwaway standalone TiDB (private-CA TLS, `REQUIRE SSL` user, utf8mb4 DB), seeds a blog, checks the API contract the reader depends on (posts, `/api/nodeinfo` site name) and CORS, then **restarts the container** and checks again. Also checks the entrypoint refuses to start without `DB_HOST` |
+| WriteFreely image | Builds `ops/render/Dockerfile`, boots it against a throwaway standalone TiDB (private-CA TLS, `REQUIRE SSL` user, utf8 DB), seeds a blog, checks the API contract the reader depends on (posts, `/api/nodeinfo` site name) and CORS, then **restarts the container** and checks again. Also checks the entrypoint refuses to start without `DB_HOST` |
 | CI gate | The single check to require in branch protection |
 
 CI also runs weekly, so an advisory or a vanished upstream asset shows up as a red run, not a surprise.

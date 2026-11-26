@@ -18,8 +18,8 @@ For how the pieces fit together see `docs/architecture.md`.
 1. Create a **TiDB Cloud Starter** instance (https://tidbcloud.com). The free tier gives 5 GiB of row storage and 50 million Request Units a month per instance; at the quota, new connections are refused until the month resets. Check the current terms before relying on it.
 2. Click **Connect** on the instance, choose a general/Go connection, and copy host (`gateway01.<region>.prod.aws.tidbcloud.com`), port (`4000`), user and password. The user carries a prefix, like `3Fm4b2.root`; use the full name. Allow connections from anywhere (or from Render's outbound IPs) in the networking settings.
 3. Create the database WriteFreely expects, in the console's SQL editor or with `mysql --host HOST --port 4000 --user 'PREFIX.root' --password --ssl-mode=VERIFY_IDENTITY`:
-   `CREATE DATABASE writefreely CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;`
-   (TiDB's default collation is case-sensitive `utf8mb4_bin`; naming `general_ci` keeps lookups case-insensitive like MySQL. The old `latin1` advice was a MySQL index-length workaround that TiDB does not need.)
+   `CREATE DATABASE writefreely CHARACTER SET utf8 COLLATE utf8_general_ci;`
+   (Use `utf8`, not `utf8mb4`. WriteFreely's migration V11 runs `MODIFY COLUMN access_token ... utf8_bin`, and TiDB refuses to narrow a utf8mb4 column to utf8 (`Error 8200`), which fails `db migrate`. WriteFreely sets utf8mb4 explicitly on its content columns, so post text is unaffected. Found by CI's smoke test against TiDB v8.5.1.)
 4. In `config.ini` use `type = mysql` (TiDB speaks the MySQL protocol), the credentials, `database = writefreely`, and `tls = true`.
 5. **No CA certificate is needed.** TiDB Cloud certificates come from Let's Encrypt, which the system trust store already has, and Go uses it. (`DB_CA_CERT` exists only for a database signed by a private CA.) TLS 1.2 or newer is required.
 6. Run `db init` once, `db migrate` after every WriteFreely upgrade. Back up before upgrading.
