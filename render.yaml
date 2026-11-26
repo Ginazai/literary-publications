@@ -57,7 +57,6 @@ services:
       - type: rewrite
         source: /wf/nodeinfo
         destination: https://writefreely-0ke4.onrender.com/api/nodeinfo
-
       - type: rewrite
         source: /wf/collections/*
         destination: https://writefreely-0ke4.onrender.com/api/collections/*

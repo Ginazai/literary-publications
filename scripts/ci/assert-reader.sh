@@ -36,14 +36,16 @@ pass "deep links fall back to the SPA shell"
 if [[ "${CHECK_PROXY:-}" == yes ]]; then   # deployed site only; `vite preview` has no proxy or headers
   is_json() { python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$TMP/$1" 2>/dev/null; }
   get nodeinfo /wf/nodeinfo
-  [[ "$STATUS" == 200 ]] && python3 -c "import json,sys; assert json.load(open(sys.argv[1]))['metadata']['nodeName']" "$TMP/nodeinfo" 2>/dev/null \
-    || fail "/wf/nodeinfo (same-origin proxy) did not return the site info: check the WriteFreely host in render.yaml routes"
+  if [[ "$STATUS" != 200 ]] || ! python3 -c "import json,sys; assert json.load(open(sys.argv[1]))['metadata']['nodeName']" "$TMP/nodeinfo" 2>/dev/null; then
+    fail "/wf/nodeinfo (same-origin proxy) did not return the site info: check the WriteFreely host in render.yaml routes"
+  fi
   pass "same-origin proxy serves the site info"
   alias1=${WF_ALIASES%%,*}; alias1=${alias1//[[:space:]]/}
   if [[ -n "$alias1" ]]; then
     get posts "/wf/collections/$alias1/posts?page=1"
-    [[ "$STATUS" == 200 ]] && python3 -c "import json,sys; assert isinstance(json.load(open(sys.argv[1]))['data']['posts'], list)" "$TMP/posts" 2>/dev/null \
-      || fail "/wf/collections/$alias1/posts?page=1 did not return posts through the proxy (is the query string passed on?)"
+    if [[ "$STATUS" != 200 ]] || ! python3 -c "import json,sys; assert isinstance(json.load(open(sys.argv[1]))['data']['posts'], list)" "$TMP/posts" 2>/dev/null; then
+      fail "/wf/collections/$alias1/posts?page=1 did not return posts through the proxy (is the query string passed on?)"
+    fi
     pass "same-origin proxy serves posts, with the query string"
   fi
   # Least privilege: anything outside the allowlist must NOT reach WriteFreely (it falls through to the SPA).
